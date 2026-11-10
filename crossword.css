@@ -1,0 +1,186 @@
+body {
+    margin: 24px;
+    color: #182035;
+    background: #f3f7f7;
+    font-family: Arial, sans-serif;
+}
+
+main {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 10px;
+    color: #287c58;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.word-bank-controls {
+    margin: 20px 0;
+    padding: 12px;
+}
+
+#topicFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.topic-option {
+    white-space: nowrap;
+}
+
+.word-count-control {
+    margin: 16px 0;
+}
+
+#wordCount {
+    width: 72px;
+    margin-left: 8px;
+    padding: 6px;
+    font: inherit;
+}
+
+#status {
+    min-height: 24px;
+}
+
+#status[role="alert"] {
+    color: #a32222;
+}
+
+#crossword {
+    text-align: center;
+    overflow-x: auto;
+}
+
+.crossword {
+    border-collapse: collapse;
+    font-family: "Courier New", Courier, monospace;
+    margin: 10px auto;
+    clear: both;
+}
+
+.crossword td {
+    border: 1px solid black;
+    padding: 0;
+    margin: 0;
+    vertical-align: middle;
+    text-align: center;
+    width: 30px;
+    height: 30px;
+}
+
+.crossword td:not(.no-border) {
+    background-color: #fff;
+}
+
+.crossword-letter {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #111;
+    font: bold 20px "Courier New", Courier, monospace;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.crossword-letter:focus {
+    outline: 3px solid #4a90e2;
+    outline-offset: -3px;
+}
+
+.crossword-letter.is-active-clue {
+    background-color: #e8f1ff;
+}
+
+.crossword-letter.is-correct {
+    background-color: #c8f7c5;
+}
+
+.crossword-letter.is-incorrect {
+    background-color: #ffd2d2;
+}
+
+.crossword .no-border {
+    border: none;
+}
+
+#clueNavigator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    max-width: 640px;
+    min-height: 112px;
+    margin: 24px auto;
+    padding: 16px;
+    border: 1px solid #c8d5dd;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.clue-content {
+    flex: 1;
+    text-align: center;
+}
+
+.clue-content p {
+    margin: 4px 0;
+}
+
+#clueCounter,
+#clueDetails {
+    color: #526176;
+    font-size: 0.9em;
+}
+
+#clueText {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.clue-arrow {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: #e8f1ff;
+    color: #182035;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.clue-arrow:focus-visible {
+    outline: 3px solid #4a90e2;
+    outline-offset: 2px;
+}
+
+.clue-arrow:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+    body {
+        margin: 12px;
+    }
+
+    #clueNavigator {
+        gap: 8px;
+        padding: 12px 8px;
+    }
+}
