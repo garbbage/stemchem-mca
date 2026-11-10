@@ -1,0 +1,7 @@
+project_id = "stemchem"
+
+[functions.admin]
+verify_jwt = true
+
+[functions.quiz]
+verify_jwt = true
