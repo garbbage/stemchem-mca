@@ -1,0 +1,861 @@
+:root {
+    color-scheme: light;
+    font-family: "Segoe UI", "Aptos", "Helvetica Neue", sans-serif;
+    color: #173c3b;
+    background: #f4f5ef;
+    --ink: #173c3b;
+    --muted: #647a77;
+    --green: #15756f;
+    --green-dark: #105b58;
+    --mint: #e2eeea;
+    --line: #dce5df;
+    --paper: #f4f5ef;
+    --surface: #fffefa;
+    --surface-soft: #edf2ed;
+    --teal: #126d68;
+    --teal-strong: #0f5855;
+    --accent: #c58b42;
+    --focus-ring: rgba(25, 122, 114, 0.26);
+    --panel-shadow: 0 12px 30px rgba(27, 62, 54, 0.045);
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    color: #e8f0ed;
+    background: #111d1d;
+    --ink: #e8f0ed;
+    --muted: #a6b8b2;
+    --green: #54b8aa;
+    --green-dark: #379d91;
+    --mint: #203b38;
+    --line: #2b403d;
+    --paper: #111d1d;
+    --surface: #192827;
+    --surface-soft: #213331;
+    --teal: #53b4a7;
+    --teal-strong: #77d0c1;
+    --accent: #e2b368;
+    --focus-ring: rgba(91, 199, 183, 0.28);
+    --panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+
+html {
+    background: var(--paper);
+}
+
+body {
+    color: var(--ink);
+    background: var(--paper);
+    font-family: "Segoe UI", "Aptos", "Helvetica Neue", sans-serif;
+}
+
+h1,
+h2,
+h3,
+.brand {
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    letter-spacing: -0.035em;
+}
+
+h1 {
+    font-size: clamp(29px, 3.2vw, 39px);
+    font-weight: 700;
+    line-height: 1.14;
+}
+
+h1 span {
+    color: var(--teal);
+}
+
+.sidebar {
+    border-color: var(--line);
+    background: var(--surface);
+}
+
+.brand {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.055em;
+}
+
+.brand-mark {
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface-soft);
+    color: var(--teal);
+}
+
+.brand-accent {
+    color: var(--teal);
+}
+
+.nav-link {
+    color: var(--muted);
+    border-radius: 9px;
+    font-weight: 600;
+}
+
+.nav-link:hover {
+    background: var(--surface-soft);
+    color: var(--teal);
+}
+
+.nav-link.active {
+    border-color: transparent;
+    background: var(--mint);
+    color: var(--teal-strong);
+}
+
+.topbar {
+    border-color: var(--line);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.top-stat small,
+.profile-copy small {
+    color: var(--muted);
+}
+
+.page-content {
+    padding-top: 42px;
+}
+
+.app-page:not([hidden]) {
+    animation: page-enter 180ms ease-out both;
+}
+
+@keyframes page-enter {
+    from {
+        opacity: 0.6;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.greeting-row {
+    margin-bottom: 30px;
+}
+
+.greeting-row h1 {
+    margin-bottom: 0;
+}
+
+.eyebrow {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+}
+
+.subheading {
+    color: var(--muted);
+}
+
+.continue-card {
+    min-height: 260px;
+    border: 0;
+    border-radius: 5px 24px 5px 24px;
+    background: #164b49;
+    box-shadow: var(--panel-shadow);
+}
+
+.continue-card::after {
+    position: absolute;
+    right: 24px;
+    bottom: -96px;
+    width: 250px;
+    height: 250px;
+    border: 1px solid rgba(202, 228, 213, 0.2);
+    border-radius: 50%;
+    content: "";
+}
+
+.continue-card h2 {
+    color: #f3f5eb;
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-size: clamp(28px, 3vw, 38px);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+}
+
+.continue-card p {
+    color: #c2d7ce;
+}
+
+.course-tag {
+    color: #a6d4c2;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+}
+
+.progress-label {
+    color: #c2d7ce;
+}
+
+.progress-label strong {
+    color: #e1eee5;
+}
+
+.progress-track {
+    background: rgba(234, 245, 236, 0.22);
+}
+
+.progress-track span {
+    background: #88c8a9;
+}
+
+.continue-card .primary-button {
+    background: #e8c482;
+    box-shadow: 0 3px 0 #ba914e;
+    color: #183c39;
+}
+
+.continue-card .primary-button:hover {
+    background: #f0d39d;
+}
+
+.measurement-value {
+    border-color: rgba(242, 240, 218, 0.25);
+    background: rgba(242, 240, 218, 0.12);
+    color: #f1d493;
+    box-shadow: none;
+}
+
+.measurement-value small,
+.measurement-uncertainty {
+    color: #d5e4d7;
+}
+
+.measurement-uncertainty {
+    background: rgba(224, 240, 217, 0.14);
+}
+
+.daily-card,
+.streak-card,
+.leaderboard-card,
+.path-card,
+.curriculum-unit,
+.practice-card,
+.dictionary-search,
+.dictionary-entry,
+.profile-page-card,
+.profile-stat-card,
+.admin-create-form,
+.password-change-form,
+.admin-roster-wrap,
+.lesson-dialog,
+.profile-dialog,
+.vocabulary-card,
+.answer-option {
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+}
+
+.daily-card,
+.streak-card,
+.leaderboard-card {
+    border-radius: 5px 16px 5px 16px;
+    box-shadow: var(--panel-shadow);
+}
+
+.daily-card p,
+.streak-caption,
+.curriculum-copy p,
+.term-count,
+.dictionary-entry p,
+.dictionary-result-count,
+.profile-page-copy > p:last-child,
+.profile-stat-card small,
+.admin-help {
+    color: var(--muted);
+}
+
+.curriculum-unit {
+    border-radius: 5px 13px 5px 13px;
+    transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.curriculum-unit.unit-unlocked:hover {
+    border-color: var(--teal);
+    box-shadow: none;
+    transform: translateY(-2px);
+}
+
+.curriculum-unit.unit-locked {
+    background: var(--surface-soft);
+}
+
+.curriculum-unit.unit-completed {
+    border-color: color-mix(in srgb, var(--teal) 45%, var(--line));
+    background: color-mix(in srgb, var(--mint) 55%, var(--surface));
+}
+
+.curriculum-copy h3,
+.daily-heading h2,
+.streak-card h2,
+.leaderboard-card h2,
+.dictionary-entry h2,
+.profile-page-copy h2,
+.profile-stat-card strong,
+.password-change-form h2,
+.profile-preferences h2 {
+    color: var(--ink);
+}
+
+.curriculum-copy .unit-label,
+.dictionary-topic {
+    color: var(--teal);
+}
+
+.dictionary-topic {
+    background: var(--mint);
+}
+
+.curriculum-icon,
+.unit-locked .curriculum-icon,
+.dialog-bubble {
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+}
+
+.primary-button,
+.unit-challenge-button {
+    background: var(--teal);
+    box-shadow: 0 3px 0 var(--teal-strong);
+}
+
+.primary-button:hover,
+.unit-challenge-button:hover:not(:disabled) {
+    background: var(--teal-strong);
+}
+
+.secondary-button {
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--teal);
+}
+
+.secondary-button:hover:not(:disabled) {
+    border-color: var(--teal);
+    background: var(--surface-soft);
+}
+
+.unit-completed .unit-challenge-button {
+    background: var(--mint);
+    color: var(--teal);
+}
+
+.practice-card {
+    border-radius: 5px 15px 5px 15px;
+    transition: border-color 150ms ease, transform 150ms ease;
+}
+
+.practice-card:hover {
+    border-color: var(--teal);
+    box-shadow: none;
+    transform: translateY(-2px);
+}
+
+.practice-card strong {
+    color: var(--ink);
+}
+
+.practice-card small {
+    color: var(--muted);
+}
+
+.dictionary-search:focus-within,
+.auth-form input:focus,
+.admin-create-form input:focus,
+.password-change-form input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.dictionary-search input,
+.admin-create-form input,
+.password-change-form input,
+.auth-form input,
+.profile-dialog input {
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--ink);
+}
+
+.dictionary-search input::placeholder,
+.auth-form input::placeholder {
+    color: var(--muted);
+}
+
+.profile-page-card {
+    border-radius: 5px 20px 5px 20px;
+}
+
+.profile-page-avatar {
+    border-color: var(--line);
+    background: var(--surface-soft);
+}
+
+.profile-stat-card {
+    border-radius: 5px 14px 5px 14px;
+}
+
+.profile-preferences {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: min(520px, 100%);
+    margin-top: 22px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+}
+
+.profile-preferences h2 {
+    margin: 0 0 4px;
+    font-size: 19px;
+}
+
+.profile-preferences p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.theme-options {
+    display: inline-flex;
+    gap: 3px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-soft);
+}
+
+.theme-option {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 150ms ease, color 150ms ease;
+}
+
+.theme-option[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--teal);
+    box-shadow: 0 1px 3px rgba(20, 43, 39, 0.12);
+}
+
+.theme-option:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+}
+
+.leaderboard-row,
+.admin-roster th,
+.admin-roster td {
+    border-color: var(--line);
+    color: var(--muted);
+}
+
+.leaderboard-rank {
+    color: var(--teal);
+}
+
+.admin-create-form label,
+.password-change-form label,
+.admin-roster th {
+    color: var(--muted);
+}
+
+.admin-feedback {
+    color: var(--teal);
+}
+
+.auth-screen {
+    background: var(--paper);
+}
+
+.auth-brand-panel {
+    background: #164b49;
+}
+
+.auth-brand-panel .brand,
+.auth-hero-copy h1 {
+    color: #f3f5eb;
+}
+
+.auth-brand-panel .brand-mark {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.1);
+    color: #d4e6d5;
+}
+
+.auth-hero-copy h1 span {
+    color: #e8c482;
+}
+
+.auth-hero-copy > p:not(.eyebrow),
+.auth-feature {
+    color: #c2d7ce;
+}
+
+.auth-orbit {
+    border-color: rgba(196, 223, 208, 0.35);
+}
+
+.auth-atom {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: #c58b42;
+    box-shadow: none;
+}
+
+.auth-molecule {
+    border-color: rgba(229, 237, 220, 0.3);
+    background: rgba(242, 240, 218, 0.12);
+    color: #f1d493;
+    box-shadow: none;
+}
+
+.auth-form-panel {
+    background: var(--paper);
+}
+
+.auth-form-wrap h2 {
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-size: 34px;
+    font-weight: 600;
+}
+
+.auth-description,
+.auth-form label {
+    color: var(--muted);
+}
+
+.auth-demo-note,
+.auth-request-panel {
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.auth-demo-note strong,
+.auth-request-panel h3 {
+    color: var(--ink);
+}
+
+.lesson-dialog,
+.profile-dialog {
+    border-radius: 8px 20px 8px 20px;
+    box-shadow: var(--panel-shadow);
+}
+
+.lesson-dialog h2,
+.profile-dialog h2,
+.vocabulary-card strong {
+    color: var(--ink);
+}
+
+.vocabulary-card {
+    background: var(--surface-soft);
+}
+
+.vocabulary-label,
+.word-counter,
+.dialog-question {
+    color: var(--muted);
+}
+
+.answer-option {
+    color: var(--ink);
+}
+
+.answer-option:hover {
+    border-color: var(--teal);
+    background: var(--surface-soft);
+}
+
+.answer-option.correct {
+    border-color: #4a9b78;
+    background: #e5f2e9;
+    color: #246548;
+}
+
+.answer-option.incorrect {
+    border-color: #c8786c;
+    background: #f8e9e6;
+    color: #874239;
+}
+
+.footer-note {
+    color: var(--muted);
+}
+
+.toast {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--panel-shadow);
+}
+
+.sidebar,
+.topbar,
+.daily-card,
+.streak-card,
+.leaderboard-card,
+.curriculum-unit,
+.practice-card,
+.dictionary-entry,
+.profile-page-card,
+.profile-stat-card,
+.lesson-dialog,
+.profile-dialog,
+.auth-form-panel,
+.admin-create-form,
+.password-change-form,
+.theme-option {
+    transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .daily-card,
+:root[data-theme="dark"] .streak-card,
+:root[data-theme="dark"] .leaderboard-card,
+:root[data-theme="dark"] .path-card,
+:root[data-theme="dark"] .curriculum-unit,
+:root[data-theme="dark"] .practice-card,
+:root[data-theme="dark"] .dictionary-entry,
+:root[data-theme="dark"] .dictionary-search,
+:root[data-theme="dark"] .profile-page-card,
+:root[data-theme="dark"] .profile-stat-card,
+:root[data-theme="dark"] .admin-create-form,
+:root[data-theme="dark"] .password-change-form,
+:root[data-theme="dark"] .admin-roster-wrap,
+:root[data-theme="dark"] .lesson-dialog,
+:root[data-theme="dark"] .profile-dialog,
+:root[data-theme="dark"] .vocabulary-card,
+:root[data-theme="dark"] .answer-option,
+:root[data-theme="dark"] .auth-demo-note,
+:root[data-theme="dark"] .auth-request-panel {
+    background: var(--surface);
+    color: var(--ink);
+}
+
+:root[data-theme="dark"] .main-content,
+:root[data-theme="dark"] .auth-screen,
+:root[data-theme="dark"] .auth-form-panel {
+    background: var(--paper);
+}
+
+:root[data-theme="dark"] .continue-card,
+:root[data-theme="dark"] .auth-brand-panel {
+    background: #173b39;
+}
+
+:root[data-theme="dark"] .nav-link,
+:root[data-theme="dark"] .subheading,
+:root[data-theme="dark"] .auth-description,
+:root[data-theme="dark"] .auth-form label,
+:root[data-theme="dark"] .daily-card p,
+:root[data-theme="dark"] .streak-caption,
+:root[data-theme="dark"] .curriculum-copy p,
+:root[data-theme="dark"] .term-count,
+:root[data-theme="dark"] .practice-card small,
+:root[data-theme="dark"] .dictionary-entry p,
+:root[data-theme="dark"] .dictionary-result-count,
+:root[data-theme="dark"] .profile-page-copy > p:last-child,
+:root[data-theme="dark"] .profile-stat-card small,
+:root[data-theme="dark"] .admin-help,
+:root[data-theme="dark"] .leaderboard-row,
+:root[data-theme="dark"] .admin-roster th,
+:root[data-theme="dark"] .admin-roster td,
+:root[data-theme="dark"] .auth-demo-note {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .curriculum-copy h3,
+:root[data-theme="dark"] .daily-heading h2,
+:root[data-theme="dark"] .streak-card h2,
+:root[data-theme="dark"] .leaderboard-card h2,
+:root[data-theme="dark"] .practice-card strong,
+:root[data-theme="dark"] .dictionary-entry h2,
+:root[data-theme="dark"] .profile-page-copy h2,
+:root[data-theme="dark"] .profile-stat-card strong,
+:root[data-theme="dark"] .password-change-form h2,
+:root[data-theme="dark"] .profile-preferences h2,
+:root[data-theme="dark"] .auth-form-wrap h2,
+:root[data-theme="dark"] .auth-request-panel h3,
+:root[data-theme="dark"] .lesson-dialog h2,
+:root[data-theme="dark"] .profile-dialog h2,
+:root[data-theme="dark"] .vocabulary-card strong,
+:root[data-theme="dark"] .answer-option {
+    color: var(--ink);
+}
+
+:root[data-theme="dark"] .curriculum-unit.unit-locked,
+:root[data-theme="dark"] .curriculum-icon,
+:root[data-theme="dark"] .unit-locked .curriculum-icon,
+:root[data-theme="dark"] .dictionary-topic,
+:root[data-theme="dark"] .theme-options,
+:root[data-theme="dark"] .dialog-bubble {
+    background: var(--surface-soft);
+    color: var(--teal-strong);
+}
+
+:root[data-theme="dark"] .curriculum-unit.unit-completed,
+:root[data-theme="dark"] .unit-completed .unit-challenge-button {
+    border-color: var(--line);
+    background: #203b35;
+    color: #9cdbbd;
+}
+
+:root[data-theme="dark"] .class-leaderboard-empty > span,
+:root[data-theme="dark"] .week-days b {
+    background: var(--surface-soft);
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .class-leaderboard-empty strong,
+:root[data-theme="dark"] .class-leaderboard-empty p,
+:root[data-theme="dark"] .class-leaderboard-empty small,
+:root[data-theme="dark"] .goal-score,
+:root[data-theme="dark"] .goal-foot {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .goal-score strong,
+:root[data-theme="dark"] .goal-foot strong {
+    color: var(--accent);
+}
+
+:root[data-theme="dark"] .daily-icon {
+    background: #3a3428;
+}
+
+:root[data-theme="dark"] .week-days .day-done {
+    background: #284537;
+    color: #a7dcbb;
+}
+
+:root[data-theme="dark"] .secondary-button {
+    border-color: var(--line);
+    background: var(--surface);
+    color: var(--teal-strong);
+}
+
+:root[data-theme="dark"] .secondary-button:hover:not(:disabled),
+:root[data-theme="dark"] .answer-option:hover {
+    background: var(--surface-soft);
+}
+
+:root[data-theme="dark"] .dictionary-search input,
+:root[data-theme="dark"] .admin-create-form input,
+:root[data-theme="dark"] .password-change-form input,
+:root[data-theme="dark"] .auth-form input,
+:root[data-theme="dark"] .profile-dialog input {
+    border-color: var(--line);
+    background: #132120;
+    color: var(--ink);
+}
+
+:root[data-theme="dark"] .dictionary-search input::placeholder,
+:root[data-theme="dark"] .auth-form input::placeholder {
+    color: #91a59f;
+}
+
+:root[data-theme="dark"] .admin-roster th,
+:root[data-theme="dark"] .admin-roster td,
+:root[data-theme="dark"] .leaderboard-row {
+    border-color: var(--line);
+}
+
+:root[data-theme="dark"] .auth-brand-panel .brand,
+:root[data-theme="dark"] .auth-hero-copy h1 {
+    color: #f0f3eb;
+}
+
+:root[data-theme="dark"] .auth-hero-copy > p:not(.eyebrow),
+:root[data-theme="dark"] .auth-feature {
+    color: #c2d7ce;
+}
+
+:root[data-theme="dark"] .measurement-value {
+    background: rgba(242, 240, 218, 0.12);
+    color: #f1d493;
+}
+
+:root[data-theme="dark"] .profile-preferences {
+    border-color: var(--line);
+}
+
+:root[data-theme="dark"] .theme-option[aria-pressed="true"] {
+    background: #304542;
+    color: #b7e7d5;
+}
+
+:root[data-theme="dark"] .answer-option.correct {
+    border-color: #4c9474;
+    background: #203a30;
+    color: #a8dfbf;
+}
+
+:root[data-theme="dark"] .answer-option.incorrect {
+    border-color: #a76157;
+    background: #3a2826;
+    color: #f0b2a7;
+}
+
+:root[data-theme="dark"] .lesson-dialog::backdrop,
+:root[data-theme="dark"] .profile-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.68);
+}
+
+@media (max-width: 650px) {
+    .profile-preferences {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .theme-option {
+        padding: 0 10px;
+    }
+
+    .continue-card {
+        min-height: 230px;
+        padding: 24px 20px;
+    }
+
+    .measurement-art {
+        right: -9%;
+        opacity: 0.55;
+    }
+
+    .continue-copy {
+        width: 85%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}

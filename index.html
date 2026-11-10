@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f7f8f2">
     <title>StemChem — Chemistry class, leveled up</title>
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="secure-app.css">
+    <link rel="stylesheet" href="chem-design.css">
 </head>
 <body>
     <main class="auth-screen" id="authScreen">
@@ -16,9 +18,8 @@
                 <span>Stem<span class="brand-accent">Chem</span></span>
             </a>
             <div class="auth-hero-copy">
-                <p class="eyebrow">YOUR CHEMISTRY QUEST STARTS HERE</p>
-                <h1>Curiosity is the first <span>ingredient.</span></h1>
-                <p>Build your chemistry knowledge one quick lesson, word, and game at a time.</p>
+                <h1>Chemistry, <span>understood.</span></h1>
+                <p>Clear lessons. Quick challenges. A little more confidence with every concept.</p>
                 <div class="auth-illustration" aria-hidden="true">
                     <span class="auth-orbit auth-orbit-one"></span>
                     <span class="auth-orbit auth-orbit-two"></span>
@@ -28,14 +29,13 @@
                     <span class="auth-spark auth-spark-two">✧</span>
                     <span class="auth-molecule">H₂O</span>
                 </div>
-                <div class="auth-feature"><span aria-hidden="true">✦</span> Learn at your own pace <span aria-hidden="true">·</span> Celebrate every win</div>
+                <div class="auth-feature"><span aria-hidden="true">H₂O</span> Measure. Explore. Understand.</div>
             </div>
         </section>
 
         <section class="auth-form-panel" aria-labelledby="authTitle">
             <div class="auth-form-wrap">
                 <div class="auth-mobile-brand"><span class="brand-mark" aria-hidden="true">⚗</span> StemChem</div>
-                <p class="eyebrow" id="authEyebrow">WELCOME BACK</p>
                 <h2 id="authTitle">Sign in to your lab</h2>
                 <p class="auth-description" id="authDescription">Use the student ID and temporary password provided by your researcher.</p>
 
@@ -87,10 +87,6 @@
             </nav>
 
             <div class="sidebar-bottom">
-                <div class="sidebar-tip">
-                    <span class="tip-icon" aria-hidden="true">✨</span>
-                    <p><strong>Small steps add up.</strong><br>One lesson a day keeps your streak alive.</p>
-                </div>
                 <button class="profile-button" id="profileButton" type="button" aria-label="Open profile">
                     <span class="avatar"><img src="icons/Profile.png" alt=""></span>
                     <span class="profile-copy"><strong id="sidebarName">Chemist</strong><small>Level <span id="playerLevel">1</span> explorer</small></span>
@@ -120,8 +116,7 @@
                     <div class="greeting-row">
                         <div>
                             <p class="eyebrow" id="todayDate"></p>
-                            <h1 id="homeTitle">Ready to make a reaction, <span id="greetingName">Chemist</span>?</h1>
-                            <p class="subheading">Your class, your chemistry quest. Learn the words, play the games, earn XP.</p>
+                            <h1 id="homeTitle">Good to see you, <span id="greetingName">Chemist</span>.</h1>
                         </div>
                         <div class="level-pill"><span aria-hidden="true">🌱</span> Level <strong id="heroLevel">1</strong> chemist</div>
                     </div>
@@ -129,11 +124,10 @@
                         <div class="main-column">
                         <article class="continue-card">
                             <div class="continue-copy">
-                                <span class="course-tag"><span aria-hidden="true">⚛</span> YOUR LEARNING PATH</span>
-                                <h2>Your next chemistry<br>challenge is ready.</h2>
+                                <h2>Continue learning</h2>
                                 <p id="nextUnitLabel">Unit 1 <span class="dot">·</span> Measurements</p>
                                 <div class="unit-progress">
-                                    <div class="progress-label"><span>Curriculum progress</span><strong id="courseProgressLabel">0 of 13 units</strong></div>
+                                    <div class="progress-label"><span>Course progress</span><strong id="courseProgressLabel">0 of 13 units</strong></div>
                                     <div class="progress-track"><span id="courseProgressBar" style="width: 0%"></span></div>
                                 </div>
                                 <button class="primary-button" id="continueButton" type="button">Continue learning <span aria-hidden="true">→</span></button>
@@ -143,20 +137,19 @@
                                 <span class="measurement-value">10.0<small>mL</small></span>
                                 <span class="measurement-uncertainty">± 0.1</span>
                             </div>
-                            <span class="card-decoration" aria-hidden="true">01</span>
                         </article>
 
                         </div>
                         <aside class="right-column" aria-label="Your stats">
                         <article class="daily-card" id="quickStats">
-                            <div class="daily-heading"><span class="daily-icon" aria-hidden="true">🎯</span><div><h2>Daily goal</h2><p>Earn XP for your class quest.</p></div></div>
+                            <div class="daily-heading"><span class="daily-icon" aria-hidden="true">🎯</span><div><h2>Daily goal</h2></div></div>
                             <div class="goal-score"><strong id="goalScore">0</strong><span> / 20 XP</span></div>
                             <div class="progress-track goal-track"><span id="goalProgress" style="width: 0%"></span></div>
-                            <div class="goal-foot"><span id="goalMessage">✨ Your next answer counts</span><strong id="goalRemaining">20 XP to go</strong></div>
+                            <div class="goal-foot"><strong id="goalRemaining">20 XP to go</strong></div>
                         </article>
 
                         <article class="streak-card">
-                            <div class="streak-card-heading"><div><p class="eyebrow">KEEP IT GOING</p><h2>Your streak</h2></div><img src="icons/Streak Activated_.png" alt=""></div>
+                            <div class="streak-card-heading"><div><h2>Your streak</h2></div><img src="icons/Streak Activated_.png" alt=""></div>
                             <div class="week-days" aria-label="This week's activity">
                                 <span><small>M</small><b>·</b></span>
                                 <span><small>T</small><b>·</b></span>
@@ -174,16 +167,12 @@
                 </section>
 
                 <section class="app-page" id="page-lessons" aria-labelledby="lessonsTitle" hidden>
-                    <div class="section-heading page-heading">
-                        <div><p class="eyebrow">YOUR COURSE</p><h1 id="lessonsTitle">The chemistry trail</h1><p class="subheading">Study the word banks and complete challenges to unlock each unit.</p></div>
-                    </div>
+                    <div class="section-heading page-heading"><div><h1 id="lessonsTitle">Chemistry course</h1></div></div>
                     <div class="curriculum-list" id="curriculumList" aria-live="polite"></div>
                 </section>
 
                 <section class="app-page" id="page-games" aria-labelledby="gamesTitle" hidden>
-                    <div class="section-heading page-heading">
-                        <div><p class="eyebrow">PLAY TO LEARN</p><h1 id="gamesTitle">Games lab</h1><p class="subheading">Practice chemistry vocabulary with quick games and puzzles.</p></div>
-                    </div>
+                    <div class="section-heading page-heading"><div><h1 id="gamesTitle">Practice</h1></div></div>
                     <div class="practice-grid games-grid">
                         <a class="practice-card flash-card" href="crossword/example.html">
                             <span class="practice-icon"><img src="icons/Games.png" alt=""></span><span><strong>Chemistry crossword</strong><small>Use clues from your class word bank</small></span><span class="card-arrow">→</span>
@@ -198,19 +187,15 @@
                 </section>
 
                 <section class="app-page" id="page-leaderboard" aria-labelledby="leaderboardTitle" hidden>
-                    <div class="section-heading page-heading">
-                        <div><p class="eyebrow">YOUR CLASS</p><h1 id="leaderboardTitle">Class leaderboard</h1><p class="subheading">Celebrate your class’s chemistry progress together.</p></div>
-                    </div>
+                    <div class="section-heading page-heading"><div><h1 id="leaderboardTitle">Class leaderboard</h1></div></div>
                     <article class="leaderboard-card">
-                        <div class="leaderboard-heading"><div><p class="eyebrow">YOUR CLASS</p><h2>Class leaderboard</h2></div><span class="trophy" aria-hidden="true">🏆</span></div>
+                        <div class="leaderboard-heading"><div><h2>Class rankings</h2></div><span class="trophy" aria-hidden="true">🏆</span></div>
                         <div class="class-leaderboard-empty"><span aria-hidden="true">👩‍🔬</span><strong>Make it a team quest</strong><p>Connect your class roster to compete for XP and celebrate your top chemists.</p><small>Class rankings need shared class data.</small></div>
                     </article>
                 </section>
 
                 <section class="app-page" id="page-dictionary" aria-labelledby="dictionaryTitle" hidden>
-                    <div class="section-heading page-heading">
-                        <div><p class="eyebrow">CHEMISTRY WORD BANK</p><h1 id="dictionaryTitle">Dictionary</h1><p class="subheading">Look up terms and definitions from every unit.</p></div>
-                    </div>
+                    <div class="section-heading page-heading"><div><h1 id="dictionaryTitle">Chemistry terms</h1></div></div>
                     <label class="dictionary-search" for="dictionarySearch">
                         <span aria-hidden="true">⌕</span>
                         <input id="dictionarySearch" type="search" placeholder="Search chemistry terms..." autocomplete="off">
@@ -220,13 +205,10 @@
                 </section>
 
                 <section class="app-page" id="page-profile" aria-labelledby="profilePageTitle" hidden>
-                    <div class="section-heading page-heading">
-                        <div><p class="eyebrow">YOUR ACCOUNT</p><h1 id="profilePageTitle">Profile</h1><p class="subheading">Your assigned account and learning progress.</p></div>
-                    </div>
+                    <div class="section-heading page-heading"><div><h1 id="profilePageTitle">Profile</h1></div></div>
                     <article class="profile-page-card">
                         <div class="profile-page-avatar"><img src="icons/Profile.png" alt=""></div>
                         <div class="profile-page-copy">
-                            <p class="eyebrow">CHEMIST</p>
                             <h2 id="profilePageName">Chemist</h2>
                             <p>Level <strong id="profilePageLevel">1</strong> explorer</p>
                         </div>
@@ -243,11 +225,22 @@
                         <p id="passwordChangeFeedback" class="auth-feedback" aria-live="polite"></p>
                         <button class="secondary-button" id="changePasswordButton" type="submit">Update password</button>
                     </form>
+                    <section class="profile-preferences" aria-labelledby="appearanceTitle">
+                        <div>
+                            <h2 id="appearanceTitle">Appearance</h2>
+                            <p>Your theme is saved on this device.</p>
+                        </div>
+                        <div class="theme-options" role="group" aria-label="Color theme">
+                            <button class="theme-option" type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+                            <button class="theme-option" type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+                            <button class="theme-option" type="button" data-theme-choice="system" aria-pressed="false">System</button>
+                        </div>
+                    </section>
                 </section>
 
                 <section class="app-page" id="page-admin" aria-labelledby="adminTitle" hidden>
                     <div class="section-heading page-heading">
-                        <div><p class="eyebrow">RESEARCHER TOOLS</p><h1 id="adminTitle">Student accounts</h1><p class="subheading">Create and manage the approved participant roster.</p></div>
+                        <div><h1 id="adminTitle">Student accounts</h1><p class="subheading">Manage the approved participant roster.</p></div>
                     </div>
                     <form class="admin-create-form" id="adminCreateForm">
                         <label for="newStudentId">Student ID / username
@@ -272,7 +265,7 @@
                     <p class="admin-help">Temporary passwords should be shared privately. The question bank is copied from the game’s public chemistry word list; this does not contain student data.</p>
                 </section>
 
-                <footer class="footer-note">Made for curious minds <span aria-hidden="true">✦</span> Keep experimenting!</footer>
+                <footer class="footer-note">StemChem <span aria-hidden="true">·</span> Chemistry for curious minds</footer>
             </div>
         </main>
     </div>
