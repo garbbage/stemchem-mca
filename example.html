@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Chemistry Crossword</title>
+<script src="../theme.js"></script>
 <link rel="stylesheet" href="crossword.css" />
 <script type="text/javascript" src="crossword.js"></script>
 <script type="text/javascript" src="../wordbank/acids-and-bases.js"></script>
@@ -364,6 +365,11 @@ function addLegendToPage(groups){
     <main>
         <a class="back-link" href="../index.html">← Back to StemChem</a>
         <h1>Chemistry Crossword</h1>
+        <div class="theme-options" role="group" aria-label="Color theme">
+            <button class="theme-option" type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+            <button class="theme-option" type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+            <button class="theme-option" type="button" data-theme-choice="system" aria-pressed="false">System</button>
+        </div>
         <fieldset class="word-bank-controls">
             <legend>Choose topics</legend>
             <div id="topicFilters"></div>

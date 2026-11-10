@@ -186,9 +186,6 @@ function updateXpDisplay() {
     const score = Math.min(20, dailyXp);
     document.getElementById("goalScore").textContent = String(score);
     document.getElementById("goalProgress").style.width = `${score * 5}%`;
-    document.getElementById("goalMessage").textContent = score >= 20
-        ? "🎉 Daily goal complete!"
-        : score >= 10 ? "✨ Halfway there" : "✨ Your next answer counts";
     document.getElementById("goalRemaining").textContent = score >= 20
         ? "Goal complete!"
         : `${20 - score} XP to go`;
@@ -814,7 +811,7 @@ document.getElementById("todayDate").textContent = new Intl.DateTimeFormat("en-U
     weekday: "long",
     month: "long",
     day: "numeric"
-}).format(new Date()).toUpperCase();
+}).format(new Date());
 renderDictionary();
 showSignedOut();
 window.chemSecureApp.start(
