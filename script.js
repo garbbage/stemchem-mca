@@ -56,6 +56,7 @@ let totalXp = 0;
 let dailyXp = 0;
 let completedTopics = [];
 let activityDates = [];
+let learningProgress = {};
 let adminStudents = [];
 let flashcardState = { words: [], index: 0, topic: "" };
 let quizState = null;
@@ -76,9 +77,15 @@ function updateProgress(progress) {
     completedTopics = Array.isArray(progress.completed_topics)
         ? progress.completed_topics.filter((topic) => topicNames.includes(topic))
         : [];
+    if (Object.prototype.hasOwnProperty.call(progress, "learning_progress")) {
+        learningProgress = progress.learning_progress && typeof progress.learning_progress === "object"
+            ? progress.learning_progress
+            : {};
+    }
     activityDates = Array.isArray(progress.activity_dates)
         ? progress.activity_dates.map((date) => String(date).slice(0, 10))
         : [];
+    window.ChemLearning.setProgress(learningProgress);
     updateXpDisplay();
     updateStreak();
     updateCurriculumProgress();
@@ -91,6 +98,7 @@ function showSignedOut() {
     dailyXp = 0;
     completedTopics = [];
     activityDates = [];
+    learningProgress = {};
     authScreen.hidden = false;
     appShell.hidden = true;
     document.getElementById("adminNavLink").hidden = true;
@@ -105,6 +113,7 @@ function showSignedOut() {
     document.getElementById("adminFeedback").textContent = "";
     adminStudents = [];
     updateName("Chemist");
+    window.ChemLearning.setProgress(learningProgress);
     updateXpDisplay();
     updateStreak();
     updateCurriculumProgress();
@@ -179,9 +188,10 @@ function shuffle(items) {
 function updateXpDisplay() {
     document.getElementById("xpCount").textContent = String(totalXp);
     const level = Math.floor(totalXp / 100) + 1;
-    document.getElementById("playerLevel").textContent = String(level);
-    document.getElementById("heroLevel").textContent = String(level);
-    document.getElementById("profilePageLevel").textContent = String(level);
+    const displayedLevel = Math.min(30, level);
+    document.getElementById("playerLevel").textContent = String(displayedLevel);
+    document.getElementById("heroLevel").textContent = String(displayedLevel);
+    document.getElementById("profilePageLevel").textContent = String(displayedLevel);
     document.getElementById("profileXp").textContent = `${totalXp} XP`;
     const score = Math.min(20, dailyXp);
     document.getElementById("goalScore").textContent = String(score);
@@ -235,58 +245,34 @@ function updateStreak() {
     });
 }
 
-function getUnlockedTopicCount() {
-    let unlocked = 1;
-    while (unlocked < topicNames.length && completedTopics.includes(topicNames[unlocked - 1])) {
-        unlocked += 1;
-    }
-    return unlocked;
-}
-
 function updateCurriculumProgress() {
-    const completedCount = topicNames.filter((topic) => completedTopics.includes(topic)).length;
-    document.getElementById("profileUnits").textContent = `${completedCount} of ${topicNames.length}`;
-    document.getElementById("courseProgressLabel").textContent = `${completedCount} of ${topicNames.length} units`;
-    document.getElementById("courseProgressBar").style.width = `${(completedCount / topicNames.length) * 100}%`;
-    const nextTopicIndex = Math.min(getUnlockedTopicCount() - 1, topicNames.length - 1);
-    const nextTopic = topicNames[nextTopicIndex];
-    document.getElementById("nextUnitLabel").innerHTML =
-        `Unit ${nextTopicIndex + 1} <span class="dot">·</span> ${topicNameMap.get(nextTopic)?.title || nextTopic}`;
+    const lessons = window.ChemLearning.getLessons();
+    const completed = Array.isArray(learningProgress.completed_lessons)
+        ? learningProgress.completed_lessons
+        : [];
+    const completedCount = lessons.filter((lesson) => completed.includes(lesson.slug)).length;
+    document.getElementById("profileUnits").textContent = `${completedCount} of ${lessons.length}`;
+    document.getElementById("courseProgressLabel").textContent = `${completedCount} of ${lessons.length} lessons`;
+    document.getElementById("courseProgressBar").style.width = `${(completedCount / lessons.length) * 100}%`;
+
+    const lastTopic = lessons.find((lesson) => lesson.slug === learningProgress.current_topic);
+    const firstIncomplete = lessons.find((lesson) => !completed.includes(lesson.slug));
+    const unlockedIndex = lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
+    const maxAvailableIndex = unlockedIndex === -1 ? lessons.length - 1 : unlockedIndex;
+    const candidate = lastTopic &&
+        !completed.includes(lastTopic.slug) &&
+        lessons.indexOf(lastTopic) <= maxAvailableIndex
+        ? lastTopic
+        : firstIncomplete && lessons.indexOf(firstIncomplete) <= maxAvailableIndex
+            ? firstIncomplete
+            : lessons[maxAvailableIndex];
+    const candidateIndex = lessons.indexOf(candidate);
+    document.getElementById("nextUnitLabel").textContent =
+        `Recommended next lesson · Topic ${candidateIndex + 1}: ${candidate.topic === "IMF" ? "Intermolecular Forces" : candidate.topic}`;
 }
 
 function renderCurriculum() {
-    const list = document.getElementById("curriculumList");
-    const unlockedCount = getUnlockedTopicCount();
-    list.innerHTML = topicNames.map((topic, index) => {
-        const detail = topicNameMap.get(topic);
-        const entries = getTopicEntries(topic);
-        const isCompleted = completedTopics.includes(topic);
-        const isUnlocked = index < unlockedCount;
-        const status = isCompleted ? "COMPLETED" : isUnlocked ? (index === unlockedCount - 1 ? "READY TO PLAY" : "UNLOCKED") : "LOCKED";
-        const buttonLabel = isCompleted ? "Play again" : "Start challenge";
-        const safeTopic = topic.replace(/"/g, "&quot;");
-        return `<article class="curriculum-unit${isUnlocked ? " unit-unlocked" : " unit-locked"}${isCompleted ? " unit-completed" : ""}">
-            <div class="curriculum-number">${String(index + 1).padStart(2, "0")}</div>
-            <div class="curriculum-icon" aria-hidden="true">${detail.icon}</div>
-            <div class="curriculum-copy">
-                <span class="unit-label">${status}</span>
-                <h3>${detail.title}</h3>
-                <p>${detail.description}</p>
-                <small class="term-count">${entries.length} word bank terms</small>
-            </div>
-            <div class="curriculum-actions">
-                <button class="secondary-button study-words-button" type="button" data-topic="${safeTopic}">Study words</button>
-                <button class="unit-challenge-button" type="button" data-topic="${safeTopic}" ${isUnlocked ? "" : "disabled"} aria-label="${isUnlocked ? buttonLabel : `Locked: ${detail.title}`}">${isCompleted ? "✓" : isUnlocked ? "▶" : '<img src="icons/Lock.png" alt="Locked">'}</button>
-            </div>
-        </article>`;
-    }).join("");
-
-    list.querySelectorAll(".study-words-button").forEach((button) => {
-        button.addEventListener("click", () => openFlashcards(button.dataset.topic));
-    });
-    list.querySelectorAll(".unit-challenge-button:not(:disabled)").forEach((button) => {
-        button.addEventListener("click", () => startQuiz(button.dataset.topic, true));
-    });
+    window.ChemLearning.renderCurriculum();
     updateCurriculumProgress();
 }
 
@@ -509,8 +495,21 @@ document.getElementById("dictionarySearch").addEventListener("input", (event) =>
     renderDictionary(event.currentTarget.value);
 });
 document.getElementById("continueButton").addEventListener("click", () => {
-    const nextTopicIndex = Math.min(getUnlockedTopicCount() - 1, topicNames.length - 1);
-    startQuiz(topicNames[nextTopicIndex], true);
+    const lessons = window.ChemLearning.getLessons();
+    const current = lessons.find((lesson) => lesson.slug === learningProgress.current_topic);
+    const nextIncomplete = lessons.find((lesson) =>
+        !(learningProgress.completed_lessons || []).includes(lesson.slug)
+    );
+    const unlockedIndex = lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
+    const lastUnlockedIndex = unlockedIndex === -1 ? lessons.length - 1 : unlockedIndex;
+    const topic = current &&
+        !(learningProgress.completed_lessons || []).includes(current.slug) &&
+        lessons.indexOf(current) <= lastUnlockedIndex
+        ? current
+        : nextIncomplete && lessons.indexOf(nextIncomplete) <= lastUnlockedIndex
+            ? nextIncomplete
+            : lessons[lastUnlockedIndex];
+    navigateToPage(`lesson/${topic.slug}`);
 });
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
@@ -541,16 +540,20 @@ document.getElementById("passwordChangeForm").addEventListener("submit", async (
 });
 
 function showAppPage(pageName) {
-    const validPages = ["home", "lessons", "games", "leaderboard", "dictionary", "profile"];
+    const lessonSlug = pageName.startsWith("lesson/") ? pageName.slice("lesson/".length) : null;
+    const validPages = ["home", "lessons", "games", "leaderboard", "dictionary", "profile", "lesson"];
     if (pageName === "admin" && currentProfile?.role === "admin") {
         validPages.push("admin");
     }
-    const selectedPage = validPages.includes(pageName) ? pageName : "home";
+    const selectedPage = lessonSlug
+        ? "lesson"
+        : validPages.includes(pageName) ? pageName : "home";
     document.querySelectorAll(".app-page").forEach((page) => {
         page.hidden = page.id !== `page-${selectedPage}`;
     });
+    const navPage = selectedPage === "lesson" ? "lessons" : selectedPage;
     document.querySelectorAll(".nav-link").forEach((link) => {
-        const isCurrent = link.dataset.page === selectedPage;
+        const isCurrent = link.dataset.page === navPage;
         link.classList.toggle("active", isCurrent);
         if (isCurrent) {
             link.setAttribute("aria-current", "page");
@@ -564,6 +567,9 @@ function showAppPage(pageName) {
     }
     if (selectedPage === "admin" && currentProfile?.role === "admin") {
         loadAdminRoster();
+    }
+    if (selectedPage === "lesson" && lessonSlug) {
+        window.ChemLearning.openTopic(lessonSlug);
     }
 }
 
@@ -812,6 +818,13 @@ document.getElementById("todayDate").textContent = new Intl.DateTimeFormat("en-U
     month: "long",
     day: "numeric"
 }).format(new Date());
+window.ChemLearning.configure({
+    request: (action, payload) => window.chemSecureApp.updateLearning(action, payload),
+    onProgress: updateProgress,
+    onToast: showToast,
+    navigate: navigateToPage,
+    openWords: openFlashcards
+});
 renderDictionary();
 showSignedOut();
 window.chemSecureApp.start(

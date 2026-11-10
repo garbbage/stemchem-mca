@@ -25,6 +25,16 @@ create table if not exists public.student_progress (
     activity_dates date[] not null default '{}',
     updated_at timestamptz not null default now()
 );
+alter table public.student_progress
+    add column if not exists learning_progress jsonb not null default '{}'::jsonb;
+
+create table if not exists public.learning_awards (
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    activity_id text not null check (length(activity_id) between 1 and 160),
+    xp integer not null check (xp in (3, 5, 10, 15)),
+    awarded_at timestamptz not null default now(),
+    primary key (user_id, activity_id)
+);
 
 create table if not exists public.question_bank (
     id uuid primary key default gen_random_uuid(),
@@ -265,15 +275,68 @@ begin
 end;
 $$;
 
+create or replace function public.award_learning_xp(
+    p_user_id uuid,
+    p_activity_id text,
+    p_xp integer
+)
+returns table (awarded boolean, total_xp integer, daily_xp integer, daily_date date, activity_dates date[])
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+    v_rows integer;
+begin
+    if p_activity_id is null or length(p_activity_id) not between 1 and 160
+       or p_xp not in (3, 5, 10, 15)
+       or not exists (
+           select 1 from public.profiles
+           where id = p_user_id and role = 'student' and is_active = true
+       ) then
+        raise exception 'Invalid learning award';
+    end if;
+
+    insert into public.learning_awards (user_id, activity_id, xp)
+    values (p_user_id, p_activity_id, p_xp)
+    on conflict (user_id, activity_id) do nothing;
+    get diagnostics v_rows = row_count;
+
+    if v_rows = 1 then
+        update public.student_progress p
+        set total_xp = p.total_xp + p_xp,
+            daily_xp = case
+                when p.daily_date = current_date then p.daily_xp + p_xp
+                else p_xp
+            end,
+            daily_date = current_date,
+            activity_dates = array(
+                select distinct d
+                from unnest(p.activity_dates || current_date) as dates(d)
+                order by d
+            ),
+            updated_at = now()
+        where p.user_id = p_user_id;
+    end if;
+
+    return query
+    select v_rows = 1, p.total_xp, p.daily_xp, p.daily_date, p.activity_dates
+    from public.student_progress p where p.user_id = p_user_id;
+end;
+$$;
+
 revoke all on function public.award_quiz_xp(uuid, uuid, uuid) from public, anon, authenticated;
 revoke all on function public.finish_quiz_session(uuid) from public, anon, authenticated;
+revoke all on function public.award_learning_xp(uuid, text, integer) from public, anon, authenticated;
 revoke all on function public.initialize_student_progress() from public, anon, authenticated;
 revoke all on function public.sync_leaderboard_score() from public, anon, authenticated;
 grant execute on function public.award_quiz_xp(uuid, uuid, uuid) to service_role;
 grant execute on function public.finish_quiz_session(uuid) to service_role;
+grant execute on function public.award_learning_xp(uuid, text, integer) to service_role;
 
 alter table public.profiles enable row level security;
 alter table public.student_progress enable row level security;
+alter table public.learning_awards enable row level security;
 alter table public.question_bank enable row level security;
 alter table public.quiz_sessions enable row level security;
 alter table public.quiz_session_answers enable row level security;
@@ -293,11 +356,11 @@ create policy leaderboard_read_authorized on public.leaderboard_scores
 for select to authenticated using (private.is_active_student());
 
 revoke all on public.profiles, public.student_progress, public.question_bank,
-    public.quiz_sessions, public.quiz_session_answers, public.question_awards,
+    public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores from anon, authenticated;
 grant select on public.profiles, public.student_progress, public.leaderboard_scores to authenticated;
 grant all on public.profiles, public.student_progress, public.question_bank,
-    public.quiz_sessions, public.quiz_session_answers, public.question_awards,
+    public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores to service_role;
 
 do $$

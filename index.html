@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="secure-app.css">
     <link rel="stylesheet" href="chem-design.css">
+    <link rel="stylesheet" href="lessons/learning.css">
 </head>
 <body>
     <main class="auth-screen" id="authScreen">
@@ -125,12 +126,12 @@
                         <article class="continue-card">
                             <div class="continue-copy">
                                 <h2>Continue learning</h2>
-                                <p id="nextUnitLabel">Unit 1 <span class="dot">·</span> Measurements</p>
+                                <p id="nextUnitLabel">Start with Measurements</p>
                                 <div class="unit-progress">
-                                    <div class="progress-label"><span>Course progress</span><strong id="courseProgressLabel">0 of 13 units</strong></div>
+                                    <div class="progress-label"><span>Lessons completed</span><strong id="courseProgressLabel">0 of 12 lessons</strong></div>
                                     <div class="progress-track"><span id="courseProgressBar" style="width: 0%"></span></div>
                                 </div>
-                                <button class="primary-button" id="continueButton" type="button">Continue learning <span aria-hidden="true">→</span></button>
+                                <button class="primary-button" id="continueButton" type="button">Continue lesson <span aria-hidden="true">→</span></button>
                             </div>
                             <div class="measurement-art" aria-hidden="true">
                                 <span class="ruler-emoji">📏</span>
@@ -167,8 +168,32 @@
                 </section>
 
                 <section class="app-page" id="page-lessons" aria-labelledby="lessonsTitle" hidden>
-                    <div class="section-heading page-heading"><div><h1 id="lessonsTitle">Chemistry course</h1></div></div>
+                    <div class="section-heading page-heading"><div><h1 id="lessonsTitle">Chemistry learning path</h1><p class="subheading">Build understanding one idea at a time, then check what you can do.</p></div></div>
                     <div class="curriculum-list" id="curriculumList" aria-live="polite"></div>
+                </section>
+
+                <section class="app-page learning-page" id="page-lesson" aria-labelledby="lessonTitle" hidden>
+                    <button class="lesson-back-link" id="lessonBackButton" type="button">← Learning path</button>
+                    <header class="lesson-header">
+                        <div>
+                            <p class="eyebrow" id="lessonTopicLabel">TOPIC 1</p>
+                            <h1 id="lessonTitle">Measurements</h1>
+                            <p id="lessonIntro" class="lesson-intro"></p>
+                        </div>
+                        <div class="lesson-progress-summary">
+                            <span id="lessonProgressLabel">0 of 3 sections complete</span>
+                            <div class="progress-track" role="progressbar" aria-label="Lesson progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="lessonProgressTrack"><span id="lessonProgressBar"></span></div>
+                        </div>
+                    </header>
+                    <div class="lesson-layout">
+                        <nav class="lesson-section-nav" aria-label="Lesson sections" id="lessonSectionNav"></nav>
+                        <article class="lesson-reading" id="lessonReading" aria-live="polite"></article>
+                    </div>
+                    <footer class="lesson-navigation">
+                        <button class="secondary-button" id="previousLessonSection" type="button">← Previous</button>
+                        <span id="lessonNavigationStatus" aria-live="polite"></span>
+                        <button class="primary-button" id="nextLessonSection" type="button">Next section →</button>
+                    </footer>
                 </section>
 
                 <section class="app-page" id="page-games" aria-labelledby="gamesTitle" hidden>
@@ -216,7 +241,7 @@
                     <div class="profile-stats-grid">
                         <article class="profile-stat-card"><span>⭐</span><strong id="profileXp">0 XP</strong><small>Total experience</small></article>
                         <article class="profile-stat-card"><span>🔥</span><strong id="profileStreak">0 days</strong><small>Current streak</small></article>
-                        <article class="profile-stat-card"><span>📚</span><strong id="profileUnits">0 of 13</strong><small>Units completed</small></article>
+                        <article class="profile-stat-card"><span>📚</span><strong id="profileUnits">0 of 12</strong><small>Lessons completed</small></article>
                     </div>
                     <form class="password-change-form" id="passwordChangeForm">
                         <h2>Change password</h2>
@@ -314,6 +339,8 @@
     <script src="wordbank/thermochemistry.js"></script>
     <script src="wordbank/general-chemistry.js"></script>
     <script src="wordbank/index.js"></script>
+    <script src="lessons/curriculum.js"></script>
+    <script src="lessons/learning-ui.js"></script>
     <script src="secure-app.js"></script>
     <script src="script.js"></script>
 </body>

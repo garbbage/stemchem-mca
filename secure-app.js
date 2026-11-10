@@ -84,7 +84,7 @@
 
             const { data: progress, error: progressError } = await db
                 .from("student_progress")
-                .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates")
+                .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
                 .eq("user_id", session.user.id)
                 .single();
             if (progressError || !progress) {
@@ -155,6 +155,10 @@
         return callFunction("quiz", { action: "answer", sessionId, questionId, answer });
     }
 
+    async function updateLearning(action, payload) {
+        return callFunction("learning", { action, ...payload });
+    }
+
     async function updatePassword(password) {
         if (typeof password !== "string" || password.length < 12) {
             throw new Error("Use a password with at least 12 characters.");
@@ -215,6 +219,7 @@
         signOut,
         startQuiz,
         submitAnswer,
+        updateLearning,
         updatePassword,
         adminRequest,
         subscribeLeaderboard,

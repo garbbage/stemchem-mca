@@ -171,7 +171,7 @@ async function answerQuiz(userId: string, body: Record<string, unknown>) {
         throw new Error("Your answer was saved, but the quiz result could not be finalized.");
     }
     const { data: currentProgress, error: progressError } = await adminClient.from("student_progress")
-        .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates")
+        .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
         .eq("user_id", userId)
         .single();
     if (progressError || !currentProgress) {
