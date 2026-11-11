@@ -165,6 +165,10 @@ create trigger progress_sync_leaderboard
 after insert or update of total_xp on public.student_progress
 for each row execute function public.sync_leaderboard_score();
 
+insert into public.student_progress (user_id)
+select id from public.profiles
+on conflict (user_id) do nothing;
+
 create or replace function public.award_quiz_xp(
     p_user_id uuid,
     p_session_id uuid,
