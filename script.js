@@ -108,6 +108,8 @@ function showSignedOut() {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
     document.getElementById("adminCreateForm").reset();
+    document.getElementById("displayNameForm").reset();
+    document.getElementById("displayNameFeedback").textContent = "";
     document.getElementById("passwordChangeForm").reset();
     document.getElementById("passwordChangeFeedback").textContent = "";
     document.getElementById("adminFeedback").textContent = "";
@@ -539,6 +541,29 @@ document.getElementById("passwordChangeForm").addEventListener("submit", async (
     }
 });
 
+document.getElementById("displayNameForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) {
+        return;
+    }
+    const button = document.getElementById("changeDisplayNameButton");
+    const feedback = document.getElementById("displayNameFeedback");
+    const displayName = document.getElementById("profileDisplayName").value.trim();
+    button.disabled = true;
+    feedback.textContent = "";
+    try {
+        await window.chemSecureApp.updateDisplayName(displayName);
+        currentProfile.display_name = displayName;
+        updateName(displayName);
+        feedback.textContent = "Display name updated.";
+    } catch (error) {
+        feedback.textContent = error.message;
+    } finally {
+        button.disabled = false;
+    }
+});
+
 function showAppPage(pageName) {
     const lessonSlug = pageName.startsWith("lesson/") ? pageName.slice("lesson/".length) : null;
     const validPages = ["home", "lessons", "games", "leaderboard", "dictionary", "profile", "lesson"];
@@ -644,8 +669,10 @@ async function loadAdminRoster() {
         }
         renderAdminRoster(result.students);
         feedback.textContent = "";
+        return true;
     } catch (error) {
         feedback.textContent = error.message;
+        return false;
     }
 }
 
@@ -674,6 +701,12 @@ function renderAdminRoster(students) {
         const activeDays = student.progress.activity_dates.length;
         progress.textContent = `${units} units · ${activeDays} active days`;
         const actions = document.createElement("td");
+        const rename = document.createElement("button");
+        rename.className = "secondary-button roster-action";
+        rename.type = "button";
+        rename.textContent = "Change name";
+        rename.dataset.action = "rename_student";
+        rename.dataset.userId = student.id;
         const toggle = document.createElement("button");
         toggle.className = "secondary-button roster-action";
         toggle.type = "button";
@@ -693,7 +726,7 @@ function renderAdminRoster(students) {
         viewProgress.textContent = "View progress";
         viewProgress.dataset.action = "view_progress";
         viewProgress.dataset.userId = student.id;
-        actions.append(toggle, reset, viewProgress);
+        actions.append(rename, toggle, reset, viewProgress);
         row.append(identity, status, xp, progress, actions);
         body.append(row);
     });
@@ -729,9 +762,25 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
         return;
     }
     const feedback = document.getElementById("adminFeedback");
+    let successMessage = "";
     button.disabled = true;
     try {
-        if (button.dataset.action === "set_active") {
+        if (button.dataset.action === "rename_student") {
+            const student = adminStudents.find((item) => item.id === button.dataset.userId);
+            if (!student) {
+                throw new Error("The selected student account is no longer available.");
+            }
+            const displayName = window.prompt("Enter a display name (1–60 characters).", student.display_name);
+            if (displayName === null) {
+                return;
+            }
+            await window.chemSecureApp.adminRequest({
+                action: "rename_student",
+                userId: button.dataset.userId,
+                displayName
+            });
+            successMessage = "Student display name updated.";
+        } else if (button.dataset.action === "set_active") {
             await window.chemSecureApp.adminRequest({
                 action: "set_active",
                 userId: button.dataset.userId,
@@ -748,7 +797,7 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
                     userId: button.dataset.userId,
                     temporaryPassword
                 });
-                feedback.textContent = "Password reset. Share the new temporary password with the student privately.";
+                successMessage = "Password reset. Share the new temporary password with the student privately.";
             } else {
                 const student = adminStudents.find((item) => item.id === button.dataset.userId);
                 if (student) {
@@ -766,7 +815,10 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
             }
         }
         if (button.dataset.action !== "view_progress") {
-            await loadAdminRoster();
+            const rosterLoaded = await loadAdminRoster();
+            if (rosterLoaded && successMessage) {
+                feedback.textContent = successMessage;
+            }
         }
     } catch (error) {
         feedback.textContent = error.message;
@@ -808,6 +860,7 @@ function handleAuthenticated(profile, progress) {
     authScreen.hidden = true;
     appShell.hidden = false;
     document.getElementById("adminNavLink").hidden = profile.role !== "admin";
+    document.getElementById("profileDisplayName").value = profile.display_name;
     updateName(profile.display_name);
     updateProgress(progress);
     showAppPage(window.location.hash.slice(1));
