@@ -351,6 +351,12 @@ drop policy if exists profiles_read_self on public.profiles;
 create policy profiles_read_self on public.profiles
 for select to authenticated using (id = (select auth.uid()) and is_active);
 
+drop policy if exists profiles_update_self_display_name on public.profiles;
+create policy profiles_update_self_display_name on public.profiles
+for update to authenticated
+using (id = (select auth.uid()) and is_active)
+with check (id = (select auth.uid()) and is_active);
+
 drop policy if exists progress_read_self on public.student_progress;
 create policy progress_read_self on public.student_progress
 for select to authenticated using (user_id = (select auth.uid()) and private.is_active_student());
@@ -363,6 +369,8 @@ revoke all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores from anon, authenticated;
 grant select on public.profiles, public.student_progress, public.leaderboard_scores to authenticated;
+revoke update (display_name) on public.profiles from authenticated;
+grant update (display_name) on public.profiles to authenticated;
 grant all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores to service_role;
