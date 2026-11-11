@@ -85,7 +85,7 @@ function updateProgress(progress) {
     activityDates = Array.isArray(progress.activity_dates)
         ? progress.activity_dates.map((date) => String(date).slice(0, 10))
         : [];
-    window.ChemLearning.setProgress(learningProgress);
+    window.ChemLearning.setProgress(learningProgress, completedTopics);
     updateXpDisplay();
     updateStreak();
     updateCurriculumProgress();
@@ -113,7 +113,7 @@ function showSignedOut() {
     document.getElementById("adminFeedback").textContent = "";
     adminStudents = [];
     updateName("Chemist");
-    window.ChemLearning.setProgress(learningProgress);
+    window.ChemLearning.setProgress(learningProgress, completedTopics);
     updateXpDisplay();
     updateStreak();
     updateCurriculumProgress();
