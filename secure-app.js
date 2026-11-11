@@ -88,7 +88,14 @@
                 .eq("user_id", session.user.id)
                 .single();
             if (progressError || !progress) {
-                throw new Error("Your learning progress could not be loaded. Please try signing in again.");
+                console.error("Could not load the signed-in ac  count's progress record.", progressError);
+                if (progressError?.code === "PGRST116") {
+                    throw new Error("This account has no progress record yet. Run the updated supabase/schema.sql to create progress records for existing accounts, then sign in again.");
+                }
+                if (progressError?.code === "42703" || progressError?.code === "PGRST204") {
+                    throw new Error("The database is missing the new learning progress column. Run the updated supabase/schema.sql, then sign in again.");
+                }
+                throw new Error(`Your learning progress could not be loaded${progressError?.message ? `: ${progressError.message}` : ". Please try signing in again."}`);
             }
 
             activeUserId = session.user.id;
