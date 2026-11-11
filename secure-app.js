@@ -175,7 +175,26 @@
             throw new Error(error.message);
         }
     }
-
+    
+    async function updateDisplayName(displayName) {
+        const name = typeof displayName === "string" ? displayName.trim() : "";
+        if (name.length < 1 || name.length > 60) {
+            throw new Error("Display names must contain 1–60 characters.");
+        }
+        if (!activeUserId) {
+            throw new Error("Sign in again before changing your display name.");
+        }
+        const { data, error } = await ensureConfigured()
+            .from("profiles")
+            .update({ display_name: name })
+            .eq("id", activeUserId)
+            .select("id")
+            .single();
+        if (error || !data) {
+            throw new Error(error?.message || "Could not update your display name.");
+        }
+    }
+    
     async function adminRequest(body) {
         return callFunction("admin", body);
     }
