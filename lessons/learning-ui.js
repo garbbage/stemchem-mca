@@ -3,6 +3,7 @@
     let activeLesson = null;
     let activeSection = 0;
     let progress = {};
+    let completedTopicNames = [];
     let integration = null;
     let challengeAnswers = {};
     let requestQueue = Promise.resolve();
@@ -106,8 +107,9 @@
         return request;
     }
 
-    function setProgress(value) {
+    function setProgress(value, topics = completedTopicNames) {
         progress = value && typeof value === "object" ? value : {};
+        completedTopicNames = Array.isArray(topics) ? topics : [];
         renderCurriculum();
         if (activeLesson) {
             updateLessonProgress();
@@ -118,7 +120,7 @@
         const index = lessons.indexOf(lesson);
         return index === 0 || lessons
             .slice(0, index)
-            .every((previous) => listAt(["completed_topics"], progress).includes(previous.topic));
+            .every((previous) => completedTopicNames.includes(previous.topic));
     }
 
     function renderCurriculum() {
