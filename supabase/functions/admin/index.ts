@@ -147,6 +147,19 @@ async function changeStudent(body: Record<string, unknown>, action: string) {
         throw new Error("The selected student account was not found.");
     }
 
+    if (action === "rename_student") {
+        const displayName = typeof body.displayName === "string" ? body.displayName.trim() : "";
+        if (displayName.length < 1 || displayName.length > 60) {
+            throw new Error("Display names must contain 1–60 characters.");
+        }
+        const { error } = await adminClient.from("profiles")
+            .update({ display_name: displayName }).eq("id", profile.id);
+        if (error) {
+            throw new Error("Could not update the student's display name.");
+        }
+        return { success: true };
+    }
+    
     if (action === "set_active") {
         if (typeof body.isActive !== "boolean") {
             throw new Error("Choose whether the student account should be active.");
@@ -219,6 +232,8 @@ Deno.serve(async (request) => {
                 return jsonResponse(200, await createStudent(body));
             case "set_active":
                 return jsonResponse(200, await changeStudent(body, "set_active"));
+            case "rename_student":
+                return jsonResponse(200, await changeStudent(body, "rename_student"));
             case "reset_password":
                 return jsonResponse(200, await changeStudent(body, "reset_password"));
             case "sync_questions":
