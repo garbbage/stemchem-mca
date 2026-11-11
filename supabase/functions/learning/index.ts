@@ -8,7 +8,7 @@ const corsHeaders = {
 const lessons = {
     measurements: { topic: "Measurements", check: ["b", "a", "b"], practice: ["a", "a", "b"], challenge: ["a", "a", "b"] },
     "atomic-structure": { topic: "Atomic Structure", check: ["b", "b", "a"], practice: ["a", "b", "a"], challenge: ["a", "c", "a"] },
-    "periodic-table": { topic: "Periodic Table", check: ["a", "a", "b"], practice: ["a", "a", "a"], challenge: ["a", "b", "a"] },
+    "periodic-table": { topic: "Periodic Table", check: ["a", "a", "b"], practice: ["a", "a", "a"], challenge: ["a", "a", "a"] },
     "chemical-bonding": { topic: "Chemical Bonding", check: ["a", "c", "a"], practice: ["a", "a", "a"], challenge: ["a", "a", "a"] },
     "intermolecular-forces": { topic: "IMF", check: ["a", "a", "a"], practice: ["a", "a", "a"], challenge: ["a", "a", "a"] },
     "states-of-matter": { topic: "States of Matter", check: ["a", "a", "a"], practice: ["a", "a", "a"], challenge: ["a", "a", "a"] },
