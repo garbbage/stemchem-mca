@@ -243,6 +243,13 @@
                         <article class="profile-stat-card"><span>🔥</span><strong id="profileStreak">0 days</strong><small>Current streak</small></article>
                         <article class="profile-stat-card"><span>📚</span><strong id="profileUnits">0 of 12</strong><small>Lessons completed</small></article>
                     </div>
+                    <form class="password-change-form" id="displayNameForm">
+                        <h2>Change display name</h2>
+                        <label for="profileDisplayName">Display name</label>
+                        <input id="profileDisplayName" type="text" minlength="1" maxlength="60" autocomplete="nickname" required>
+                        <p id="displayNameFeedback" class="auth-feedback" aria-live="polite"></p>
+                        <button class="secondary-button" id="changeDisplayNameButton" type="submit">Save display name</button>
+                    </form>
                     <form class="password-change-form" id="passwordChangeForm">
                         <h2>Change password</h2>
                         <label for="newPassword">New password</label>
