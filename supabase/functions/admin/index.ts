@@ -92,8 +92,8 @@ async function createStudent(body: Record<string, unknown>) {
     if (displayName.length < 1 || displayName.length > 60) {
         throw new Error("Display names must contain 1–60 characters.");
     }
-    if (password.length < 12 || password.length > 128) {
-        throw new Error("Temporary passwords must contain 12–128 characters.");
+    if (password.length < 6 || password.length > 128) {
+        throw new Error("Temporary passwords must contain 6–128 characters.");
     }
     const { data: existing, error: lookupError } = await adminClient
         .from("profiles")
@@ -166,8 +166,8 @@ async function changeStudent(body: Record<string, unknown>, action: string) {
     }
 
     const password = typeof body.temporaryPassword === "string" ? body.temporaryPassword : "";
-    if (password.length < 12 || password.length > 128) {
-        throw new Error("Temporary passwords must contain 12–128 characters.");
+    if (password.length < 6 || password.length > 128) {
+        throw new Error("Temporary passwords must contain 6–128 characters.");
     }
     const { error } = await adminClient.auth.admin.updateUserById(profile.id, { password });
     if (error) {

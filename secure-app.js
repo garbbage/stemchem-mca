@@ -167,8 +167,8 @@
     }
 
     async function updatePassword(password) {
-        if (typeof password !== "string" || password.length < 12) {
-            throw new Error("Use a password with at least 12 characters.");
+        if (typeof password !== "string" || password.length < 6) {
+            throw new Error("Use a password with at least 6 characters.");
         }
         const { error } = await ensureConfigured().auth.updateUser({ password });
         if (error) {

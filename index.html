@@ -246,7 +246,7 @@
                     <form class="password-change-form" id="passwordChangeForm">
                         <h2>Change password</h2>
                         <label for="newPassword">New password</label>
-                        <input id="newPassword" type="password" minlength="12" autocomplete="new-password" required>
+                        <input id="newPassword" type="password" minlength="6" maxlength="128" autocomplete="new-password" required>
                         <p id="passwordChangeFeedback" class="auth-feedback" aria-live="polite"></p>
                         <button class="secondary-button" id="changePasswordButton" type="submit">Update password</button>
                     </form>
@@ -274,8 +274,8 @@
                         <label for="newDisplayName">Assigned display name
                             <input id="newDisplayName" name="displayName" type="text" minlength="1" maxlength="60" autocomplete="off" required>
                         </label>
-                        <label for="newTemporaryPassword">Temporary password (12+ characters)
-                            <input id="newTemporaryPassword" name="temporaryPassword" type="password" minlength="12" autocomplete="new-password" required>
+                        <label for="newTemporaryPassword">Temporary password (6–128 characters)
+                            <input id="newTemporaryPassword" name="temporaryPassword" type="password" minlength="6" maxlength="128" autocomplete="new-password" required>
                         </label>
                         <button class="primary-button" id="createStudentButton" type="submit">Create student account</button>
                     </form>

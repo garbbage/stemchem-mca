@@ -739,7 +739,7 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
             });
         } else {
             if (button.dataset.action === "reset_password") {
-                const temporaryPassword = window.prompt("Enter a new temporary password (at least 12 characters).");
+                const temporaryPassword = window.prompt("Enter a new temporary password (6–128 characters).");
                 if (!temporaryPassword) {
                     return;
                 }
