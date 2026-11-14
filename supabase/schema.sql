@@ -754,6 +754,9 @@ begin
         into v_score, v_total, v_awarded_xp
         from public.game_attempt_awards a
         where a.session_id = p_session_id;
+        if not found then
+            raise exception 'The completed crossword has no saved reward record';
+        end if;
     else
         for v_question in
             select id, word
@@ -764,8 +767,8 @@ begin
                or jsonb_typeof(p_answers -> v_question.id::text) <> 'string' then
                 raise exception 'Every crossword answer must be text';
             end if;
-            if regexp_replace(p_answers ->> v_question.id::text, '[^A-Za-z]', '', 'g')
-                ~* ('^' || regexp_replace(v_question.word, '[^A-Za-z]', '', 'g') || '$') then
+            if upper(regexp_replace(p_answers ->> v_question.id::text, '[^A-Za-z]', '', 'g'))
+                = upper(regexp_replace(v_question.word, '[^A-Za-z]', '', 'g')) then
                 v_score := v_score + 1;
             end if;
         end loop;
