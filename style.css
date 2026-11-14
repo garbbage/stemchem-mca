@@ -2365,6 +2365,11 @@ h1 span {
     margin-top: 3px;
 }
 
+.dictionary-formula-empty {
+    color: #a0aaa2 !important;
+    font-style: italic;
+}
+
 .dictionary-empty {
     grid-column: 1 / -1;
     padding: 28px;
