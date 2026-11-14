@@ -7,7 +7,7 @@
 <script src="../theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <script src="../supabase-config.js"></script>
-<link rel="stylesheet" href="crossword.css" />
+<link rel="stylesheet" href="crossword.css?v=20261115" />
 <script type="text/javascript" src="crossword.js"></script>
 <script type="text/javascript" src="../wordbank/acids-and-bases.js"></script>
 <script type="text/javascript" src="../wordbank/atomic-structure.js"></script>
@@ -30,6 +30,9 @@ var activeClueIndex = 0;
 var crosswordSessionId = null;
 var crosswordQuestionIds = [];
 var crosswordBuildToken = 0;
+var crosswordComplete = false;
+var crosswordChecking = false;
+var focusedGridCell = null;
 var crosswordConfig = window.STEMCHEM_SUPABASE_CONFIG || {};
 var crosswordSupabase = window.supabase && crosswordConfig.url && crosswordConfig.anonKey
     ? window.supabase.createClient(crosswordConfig.url, crosswordConfig.anonKey)
@@ -61,9 +64,16 @@ window.onload = function(){
     document.getElementById("nextClue").addEventListener("click", function(){
         changeActiveClue(1, true);
     });
+    document.getElementById("newCrossword").addEventListener("click", function(){
+        document.getElementById("crosswordResults").hidden = true;
+        document.getElementById("gamePanel").hidden = false;
+        buildCrossword();
+    });
     document.getElementById("crossword").addEventListener("input", handleGridInput);
     document.getElementById("crossword").addEventListener("focusin", handleGridFocus);
     document.getElementById("crossword").addEventListener("keydown", handleGridKeydown);
+    document.getElementById("mobileKeyboard").addEventListener("click", handleMobileKeyboard);
+    createMobileKeyboard();
     updateWordLimit();
     buildCrossword();
 };
@@ -122,7 +132,12 @@ function buildCrossword(){
     crosswordBuildToken++;
     crosswordSessionId = null;
     crosswordQuestionIds = [];
+    crosswordComplete = false;
+    crosswordChecking = false;
+    focusedGridCell = null;
     document.getElementById("checkAnswers").disabled = true;
+    setPuzzleControlsDisabled(false);
+    document.getElementById("answerFeedback").textContent = "";
     var selectedTopics = getSelectedTopics();
     var availableEntries = getEntriesForSelectedTopics();
     var countInput = document.getElementById("wordCount");
@@ -194,6 +209,10 @@ function buildCrossword(){
     status.setAttribute("role", "status");
     status.textContent = entries.length + " words from selected topics.";
     crossword.innerHTML = CrosswordUtils.toHtml(grid, false, true);
+    var gridInputs = crossword.querySelectorAll(".crossword-letter");
+    for(var inputIndex = 0; inputIndex < gridInputs.length; inputIndex++){
+        gridInputs[inputIndex].setAttribute("inputmode", "none");
+    }
 
     var legend = cw.getLegend(grid);
     for(var direction in legend){
@@ -227,7 +246,7 @@ async function startCrosswordSession(entries, buildToken){
                 })
             }
         });
-        if(result.error) throw result.error;
+        if(result.error) throw await readFunctionError(result.error);
         if(buildToken !== crosswordBuildToken) return;
         if(!result.data || !result.data.sessionId ||
             !Array.isArray(result.data.questions) ||
@@ -257,6 +276,69 @@ function changeActiveClue(offset, focusGrid){
     activeClueIndex = (activeClueIndex + offset + crosswordClues.length) % crosswordClues.length;
     updateClueNavigator();
     if(focusGrid) focusActiveClue();
+}
+
+function findNextIncompleteClue(startIndex){
+    for(var offset = 1; offset <= crosswordClues.length; offset++){
+        var index = (startIndex + offset) % crosswordClues.length;
+        var cells = Array.prototype.slice.call(getActiveClueCellsFor(crosswordClues[index]));
+        if(cells.some(function(cell){ return !cell.value; })) return index;
+    }
+    return -1;
+}
+
+function createMobileKeyboard(){
+    var keyboard = document.getElementById("mobileKeyboard");
+    ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach(function(rowText){
+        var row = document.createElement("div");
+        row.className = "keyboard-row";
+        for(var i = 0; i < rowText.length; i++){
+            var key = document.createElement("button");
+            key.type = "button";
+            key.className = "keyboard-key";
+            key.dataset.key = rowText.charAt(i);
+            key.textContent = rowText.charAt(i);
+            key.setAttribute("aria-label", "Enter " + rowText.charAt(i));
+            row.appendChild(key);
+        }
+        keyboard.appendChild(row);
+    });
+    var deleteKey = document.createElement("button");
+    deleteKey.type = "button";
+    deleteKey.className = "keyboard-key keyboard-delete";
+    deleteKey.dataset.key = "Backspace";
+    deleteKey.textContent = "⌫";
+    deleteKey.setAttribute("aria-label", "Delete letter");
+    keyboard.lastElementChild.appendChild(deleteKey);
+}
+
+function handleMobileKeyboard(event){
+    var key = event.target.closest("button[data-key]");
+    if(!key || crosswordComplete || crosswordChecking) return;
+    if(!focusedGridCell || !document.getElementById("crossword").contains(focusedGridCell)){
+        focusedGridCell = document.activeElement.classList.contains("crossword-letter")
+            ? document.activeElement
+            : null;
+    }
+    if(!focusedGridCell) return;
+    focusedGridCell.focus();
+    if(key.dataset.key === "Backspace"){
+        if(focusedGridCell.value){
+            setGridLetter(focusedGridCell, "", false);
+        }else{
+            focusedGridCell.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "Backspace",
+                bubbles: true
+            }));
+        }
+        return;
+    }
+    setGridLetter(focusedGridCell, key.dataset.key, true);
+}
+
+function setPuzzleControlsDisabled(disabled){
+    var controls = document.querySelectorAll("#topicFilters input, #wordCount, #mobileKeyboard button, .crossword-letter");
+    for(var i = 0; i < controls.length; i++) controls[i].disabled = disabled;
 }
 
 function updateClueNavigator(){
@@ -300,13 +382,18 @@ function getActiveClueCells(){
 }
 
 function focusActiveClue(){
-    var cells = getActiveClueCells();
-    if(cells.length > 0) cells[0].focus();
+    var cells = Array.prototype.slice.call(getActiveClueCells());
+    var target = cells.find(function(cell){ return !cell.value; }) || cells[0];
+    if(target){
+        focusedGridCell = target;
+        target.focus();
+    }
 }
 
 function handleGridFocus(event){
     var cell = event.target;
     if(!cell.classList.contains("crossword-letter")) return;
+    focusedGridCell = cell;
 
     var clue = crosswordClues[activeClueIndex];
     if(clue && cell.hasAttribute("data-" + clue.direction + "-index") &&
@@ -331,10 +418,11 @@ function handleGridInput(event){
     if(!cell.classList.contains("crossword-letter")) return;
 
     var letters = normalizeAnswer(cell.value);
-    setGridLetter(cell, letters ? letters.charAt(letters.length - 1) : "");
+    setGridLetter(cell, letters ? letters.charAt(letters.length - 1) : "", true);
 }
 
-function setGridLetter(cell, letter){
+function setGridLetter(cell, letter, advance){
+    if(!cell || crosswordComplete || crosswordChecking) return;
     cell.value = letter;
     cell.classList.remove("is-correct", "is-incorrect");
     document.getElementById("answerFeedback").textContent = "";
@@ -342,13 +430,30 @@ function setGridLetter(cell, letter){
     if(!cell.value) return;
     var clue = crosswordClues[activeClueIndex];
     if(!clue || !cell.hasAttribute("data-" + clue.direction + "-position")) return;
-
-    var position = parseInt(cell.getAttribute("data-" + clue.direction + "-position"), 10);
-    var nextCell = document.querySelector(
-        ".crossword-letter[data-" + clue.direction + "-index='" + clue.index +
-        "'][data-" + clue.direction + "-position='" + (position + 1) + "']"
-    );
-    if(nextCell) nextCell.focus();
+    if(advance === false) return;
+    var clueCells = Array.prototype.slice.call(getActiveClueCells());
+    clueCells.sort(function(left, right){
+        return parseInt(left.getAttribute("data-" + clue.direction + "-position"), 10) -
+            parseInt(right.getAttribute("data-" + clue.direction + "-position"), 10);
+    });
+    var currentIndex = clueCells.indexOf(cell);
+    var nextCell = clueCells.slice(currentIndex + 1).concat(clueCells.slice(0, currentIndex))
+        .find(function(candidate){ return !candidate.value; });
+    if(nextCell){
+        nextCell.focus();
+        return;
+    }
+    if(clueCells.every(function(candidate){ return Boolean(candidate.value); })){
+        var nextClueIndex = findNextIncompleteClue(activeClueIndex);
+        if(nextClueIndex !== -1){
+            activeClueIndex = nextClueIndex;
+            updateClueNavigator();
+            focusActiveClue();
+        }else{
+            document.getElementById("answerFeedback").textContent = "All words are filled. Check your answers when you are ready.";
+            document.getElementById("checkAnswers").focus();
+        }
+    }
 }
 
 function handleGridKeydown(event){
@@ -357,36 +462,48 @@ function handleGridKeydown(event){
 
     if(/^[a-z]$/i.test(event.key)){
         event.preventDefault();
-        setGridLetter(cell, event.key.toUpperCase());
+        setGridLetter(cell, event.key.toUpperCase(), true);
         return;
     }
 
-    if(event.key !== "Backspace" || cell.value) return;
+    if(event.key === "Backspace" && cell.value){
+        event.preventDefault();
+        setGridLetter(cell, "", false);
+        return;
+    }
+    if(event.key !== "Backspace") return;
 
     var clue = crosswordClues[activeClueIndex];
     if(!clue || !cell.hasAttribute("data-" + clue.direction + "-position")) return;
     var position = parseInt(cell.getAttribute("data-" + clue.direction + "-position"), 10);
     if(position === 0) return;
 
-    var previousCell = document.querySelector(
-        ".crossword-letter[data-" + clue.direction + "-index='" + clue.index +
-        "'][data-" + clue.direction + "-position='" + (position - 1) + "']"
-    );
+    var clueCells = Array.prototype.slice.call(getActiveClueCells());
+    clueCells.sort(function(left, right){
+        return parseInt(left.getAttribute("data-" + clue.direction + "-position"), 10) -
+            parseInt(right.getAttribute("data-" + clue.direction + "-position"), 10);
+    });
+    var currentIndex = clueCells.indexOf(cell);
+    var previousCell = clueCells.slice(0, currentIndex).reverse()
+        .find(function(candidate){ return Boolean(candidate.value); }) ||
+        clueCells.slice(0, currentIndex).reverse()[0];
     if(previousCell){
         event.preventDefault();
         previousCell.focus();
-        previousCell.value = "";
-        previousCell.classList.remove("is-correct", "is-incorrect");
+        setGridLetter(previousCell, "", false);
         document.getElementById("answerFeedback").textContent = "";
     }
 }
 
 async function checkAnswers(){
+    if(crosswordComplete || crosswordChecking) return;
     var cells = document.querySelectorAll(".crossword-letter");
     var incorrect = 0;
+    var unanswered = 0;
 
     for(var i = 0; i < cells.length; i++){
         var cell = cells[i];
+        if(!cell.value) unanswered++;
         var is_correct = normalizeAnswer(cell.value) === cell.getAttribute("data-answer");
         cell.classList.toggle("is-correct", is_correct);
         cell.classList.toggle("is-incorrect", !is_correct);
@@ -394,11 +511,22 @@ async function checkAnswers(){
     }
 
     var feedback = document.getElementById("answerFeedback");
+    if(unanswered){
+        feedback.textContent = unanswered + " square" + (unanswered === 1 ? " is" : "s are") +
+            " still empty. Fill every word before checking.";
+        return;
+    }
     feedback.textContent = incorrect === 0
         ? "All answers are correct!"
-        : incorrect + " square" + (incorrect === 1 ? " is" : "s are") + " incorrect or empty. so sad!";
+        : incorrect + " square" + (incorrect === 1 ? " is" : "s are") + " incorrect. Review the highlighted letters.";
 
     if(!crosswordSessionId){
+        if(incorrect === 0){
+            crosswordComplete = true;
+            setPuzzleControlsDisabled(true);
+            document.getElementById("checkAnswers").disabled = true;
+            showCrosswordResults({ score: crosswordClues.length, total: crosswordClues.length, awardedXp: 0 }, false);
+        }
         return;
     }
 
@@ -415,30 +543,82 @@ async function checkAnswers(){
 
     var sessionId = crosswordSessionId;
     var submitButton = document.getElementById("checkAnswers");
+    crosswordChecking = true;
     submitButton.disabled = true;
+    setPuzzleControlsDisabled(true);
     feedback.textContent += " Saving verified result…";
     try{
         var result = await crosswordSupabase.functions.invoke("quiz", {
             body: { action: "submit_crossword", sessionId: sessionId, answers: answers }
         });
-        if(result.error) throw result.error;
+        if(result.error) throw await readFunctionError(result.error);
         if(sessionId !== crosswordSessionId) return;
         if(!result.data || typeof result.data.score !== "number" ||
             typeof result.data.total !== "number" || !result.data.progress){
             throw new Error("The crossword server returned an invalid result.");
         }
-        var multiplier = Number(result.data.multiplier).toFixed(1);
-        feedback.textContent = "Server verified " + result.data.score + " of " +
-            result.data.total + " words. " +
-            (result.data.awardedXp > 0
-                ? "+" + result.data.awardedXp + " XP at " + multiplier + "×."
-                : "This result earned 0 XP; rewards depend on performance and are limited to five completed games and 100 game XP per day.");
-        submitButton.disabled = true;
+        crosswordComplete = true;
+        showCrosswordResults(result.data, true);
     }catch(error){
-        feedback.textContent += " The result could not be saved: " +
+        crosswordChecking = false;
+        setPuzzleControlsDisabled(false);
+        feedback.textContent = "The result could not be saved: " +
             (error && error.message ? error.message : "Please try again.");
         submitButton.disabled = false;
     }
+}
+
+async function readFunctionError(error){
+    if(error && error.context instanceof Response){
+        try{
+            var body = await error.context.clone().json();
+            if(body && typeof body.error === "string") return new Error(body.error);
+            if(body && typeof body.message === "string") return new Error(body.message);
+        }catch(parseError){
+            console.error("Could not read the crossword server error response.", parseError);
+        }
+    }
+    return new Error(error && error.message ? error.message : "The crossword result could not be saved.");
+}
+
+function showCrosswordResults(result, rewarded){
+    var results = document.getElementById("crosswordResults");
+    var review = document.getElementById("crosswordReview");
+    var multiplier = Number(result.multiplier || 1).toFixed(1);
+    var xp = Number(result.awardedXp) || 0;
+    document.getElementById("resultSummary").textContent =
+        (rewarded ? "Server verified " : "You solved ") +
+        result.score + " of " + result.total + " words." +
+        (rewarded
+            ? (xp > 0
+                ? " You earned +" + xp + " XP at " + multiplier + "×."
+                : " This result earned 0 XP; rewards are limited to five completed games and 100 game XP per day.")
+            : " This local practice result was not saved for XP.");
+    review.replaceChildren();
+    crosswordClues.forEach(function(clue, index){
+        var answerCells = Array.prototype.slice.call(getActiveClueCellsFor(clue));
+        answerCells.sort(function(left, right){
+            return parseInt(left.getAttribute("data-" + clue.direction + "-position"), 10) -
+                parseInt(right.getAttribute("data-" + clue.direction + "-position"), 10);
+        });
+        var entered = answerCells.map(function(cell){ return cell.value; }).join("");
+        var expected = answerCells.map(function(cell){ return cell.getAttribute("data-answer"); }).join("");
+        var item = document.createElement("article");
+        item.className = "crossword-review-item " +
+            (normalizeAnswer(entered) === normalizeAnswer(expected) ? "is-correct" : "is-incorrect");
+        var title = document.createElement("h3");
+        title.textContent = (index + 1) + ". " + clue.topic + " · " + clue.direction;
+        var prompt = document.createElement("p");
+        prompt.textContent = clue.clue;
+        var answer = document.createElement("p");
+        answer.className = "crossword-review-answer";
+        answer.textContent = "Your answer: " + entered + " · Correct answer: " + expected;
+        item.append(title, prompt, answer);
+        review.appendChild(item);
+    });
+    document.getElementById("gamePanel").hidden = true;
+    results.hidden = false;
+    results.focus();
 }
 
 function getActiveClueCellsFor(clue){
@@ -480,26 +660,37 @@ function addLegendToPage(groups){
             <button class="theme-option" type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
             <button class="theme-option" type="button" data-theme-choice="system" aria-pressed="false">System</button>
         </div>
-        <fieldset class="word-bank-controls">
-            <legend>Choose topics</legend>
-            <div id="topicFilters"></div>
-        </fieldset>
-        <div class="word-count-control">
-            <label for="wordCount">Words in crossword</label>
-            <input id="wordCount" type="number" min="2" value="10" />
-        </div>
-        <p id="status" aria-live="polite" role="status"></p>
-        <div id="crossword"></div>
-        <button id="checkAnswers" type="button">Check answers</button>
-        <p id="answerFeedback" aria-live="polite"></p>
-        <section id="clueNavigator" aria-label="Current crossword clue">
-            <button id="previousClue" class="clue-arrow" type="button" aria-label="Previous clue">&larr;</button>
-            <div class="clue-content" aria-live="polite">
-                <p id="clueCounter"></p>
-                <p id="clueText"></p>
-                <p id="clueDetails"></p>
+        <section id="gamePanel" aria-label="Crossword game">
+            <fieldset class="word-bank-controls">
+                <legend>Choose topics</legend>
+                <div id="topicFilters"></div>
+            </fieldset>
+            <div class="word-count-control">
+                <label for="wordCount">Words in crossword</label>
+                <input id="wordCount" type="number" min="2" value="10" />
             </div>
-            <button id="nextClue" class="clue-arrow" type="button" aria-label="Next clue">&rarr;</button>
+            <p id="status" aria-live="polite" role="status"></p>
+            <div id="crossword"></div>
+            <div id="mobileKeyboard" class="mobile-keyboard" aria-label="Crossword letter keyboard"></div>
+            <button id="checkAnswers" type="button">Check answers</button>
+            <p id="answerFeedback" aria-live="polite"></p>
+            <section id="clueNavigator" aria-label="Current crossword clue">
+                <button id="previousClue" class="clue-arrow" type="button" aria-label="Previous clue">&larr;</button>
+                <div class="clue-content" aria-live="polite">
+                    <p id="clueCounter"></p>
+                    <p id="clueText"></p>
+                    <p id="clueDetails"></p>
+                </div>
+                <button id="nextClue" class="clue-arrow" type="button" aria-label="Next clue">&rarr;</button>
+            </section>
+        </section>
+        <section id="crosswordResults" class="crossword-results" aria-labelledby="resultsTitle" tabindex="-1" hidden>
+            <p class="result-eyebrow">CROSSWORD COMPLETE</p>
+            <h2 id="resultsTitle">Your results</h2>
+            <p id="resultSummary" aria-live="polite"></p>
+            <h3>Answer review</h3>
+            <div id="crosswordReview" class="crossword-review"></div>
+            <button id="newCrossword" type="button">Build another crossword</button>
         </section>
     </main>
 
