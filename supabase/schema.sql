@@ -200,6 +200,79 @@ begin
 end;
 $$;
 
+create or replace function public.unlock_all_student_lessons(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    update public.student_progress as progress
+    set learning_progress = jsonb_set(
+        case
+            when jsonb_typeof(progress.learning_progress) = 'object'
+                then progress.learning_progress
+            else '{}'::jsonb
+        end,
+        '{all_lessons_unlocked}',
+        'true'::jsonb,
+        true
+    ),
+    updated_at = now()
+    where progress.user_id = p_user_id
+      and exists (
+          select 1
+          from public.profiles
+          where id = p_user_id and role = 'student'
+      );
+
+    if not found then
+        raise exception 'Student progress is not available';
+    end if;
+end;
+$$;
+
+create or replace function public.save_student_learning_progress(
+    p_user_id uuid,
+    p_learning_progress jsonb,
+    p_completed_topics text[],
+    p_multiplier numeric
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+    if p_learning_progress is null
+       or jsonb_typeof(p_learning_progress) <> 'object'
+       or p_multiplier is null
+       or p_multiplier < 1.0 or p_multiplier > 1.5
+       or p_multiplier * 10 <> trunc(p_multiplier * 10) then
+        raise exception 'Invalid learning progress';
+    end if;
+
+    update public.student_progress as progress
+    set learning_progress = jsonb_set(
+        p_learning_progress,
+        '{all_lessons_unlocked}',
+        to_jsonb(
+            progress.learning_progress ->> 'all_lessons_unlocked' = 'true'
+            or p_learning_progress ->> 'all_lessons_unlocked' = 'true'
+        ),
+        true
+    ),
+    completed_topics = coalesce(p_completed_topics, progress.completed_topics),
+    game_xp_multiplier = p_multiplier,
+    updated_at = now()
+    where progress.user_id = p_user_id;
+
+    if not found then
+        raise exception 'Student progress is not available';
+    end if;
+end;
+$$;
+
 drop trigger if exists profiles_initialize_progress on public.profiles;
 create trigger profiles_initialize_progress
 after insert on public.profiles
@@ -733,11 +806,15 @@ revoke all on function public.award_quiz_xp(uuid, uuid, uuid) from service_role;
 revoke all on function public.finish_quiz_session(uuid) from service_role;
 revoke all on function public.award_learning_xp(uuid, text, integer) from service_role;
 revoke all on function public.initialize_student_progress() from public, anon, authenticated;
+revoke all on function public.unlock_all_student_lessons(uuid) from public, anon, authenticated;
+revoke all on function public.save_student_learning_progress(uuid, jsonb, text[], numeric) from public, anon, authenticated;
 revoke all on function public.sync_leaderboard_score() from public, anon, authenticated;
 revoke all on function private.award_game_attempt(uuid, uuid, integer, integer, numeric) from public, anon, authenticated;
 revoke all on function public.submit_quiz_answer(uuid, uuid, uuid, text) from public, anon, authenticated;
 revoke all on function public.submit_crossword_attempt(uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function private.award_game_attempt(uuid, uuid, integer, integer, numeric) to service_role;
+grant execute on function public.unlock_all_student_lessons(uuid) to service_role;
+grant execute on function public.save_student_learning_progress(uuid, jsonb, text[], numeric) to service_role;
 grant execute on function public.submit_quiz_answer(uuid, uuid, uuid, text) to service_role;
 grant execute on function public.submit_crossword_attempt(uuid, uuid, jsonb) to service_role;
 
