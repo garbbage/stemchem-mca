@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Chemistry Crossword</title>
 <script src="../theme.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
+<script src="../supabase-config.js"></script>
 <link rel="stylesheet" href="crossword.css" />
 <script type="text/javascript" src="crossword.js"></script>
 <script type="text/javascript" src="../wordbank/acids-and-bases.js"></script>
@@ -25,6 +27,13 @@
 <script type="text/javascript">
 var crosswordClues = [];
 var activeClueIndex = 0;
+var crosswordSessionId = null;
+var crosswordQuestionIds = [];
+var crosswordBuildToken = 0;
+var crosswordConfig = window.STEMCHEM_SUPABASE_CONFIG || {};
+var crosswordSupabase = window.supabase && crosswordConfig.url && crosswordConfig.anonKey
+    ? window.supabase.createClient(crosswordConfig.url, crosswordConfig.anonKey)
+    : null;
 
 window.onload = function(){
     var topicFilters = document.getElementById("topicFilters");
@@ -78,10 +87,11 @@ function getEntriesForSelectedTopics(){
 function updateWordLimit(){
     var countInput = document.getElementById("wordCount");
     var available = getEntriesForSelectedTopics().length;
-    countInput.max = available;
+    var maxCount = Math.min(20, available);
+    countInput.max = maxCount;
 
-    if(available >= 2 && parseInt(countInput.value, 10) > available){
-        countInput.value = available;
+    if(available >= 2 && parseInt(countInput.value, 10) > maxCount){
+        countInput.value = maxCount;
     } else if(available < 2){
         countInput.value = available;
     } else if(parseInt(countInput.value, 10) < 2){
@@ -109,6 +119,10 @@ function getClueOptions(entry){
 }
 
 function buildCrossword(){
+    crosswordBuildToken++;
+    crosswordSessionId = null;
+    crosswordQuestionIds = [];
+    document.getElementById("checkAnswers").disabled = true;
     var selectedTopics = getSelectedTopics();
     var availableEntries = getEntriesForSelectedTopics();
     var countInput = document.getElementById("wordCount");
@@ -150,9 +164,9 @@ function buildCrossword(){
         return;
     }
 
-    if(isNaN(requestedCount) || requestedCount < 2 || requestedCount > availableEntries.length){
+    if(isNaN(requestedCount) || requestedCount < 2 || requestedCount > Math.min(20, availableEntries.length)){
         status.setAttribute("role", "alert");
-        status.textContent = "Choose a word count from 2 to " + availableEntries.length + ".";
+        status.textContent = "Choose a word count from 2 to " + Math.min(20, availableEntries.length) + ".";
         return;
     }
 
@@ -189,6 +203,53 @@ function buildCrossword(){
         }
     }
     addLegendToPage(legend);
+    startCrosswordSession(entries, crosswordBuildToken);
+}
+
+async function startCrosswordSession(entries, buildToken){
+    var status = document.getElementById("status");
+    try{
+        if(!crosswordSupabase){
+            throw new Error("Supabase is unavailable. You can check answers locally, but game XP cannot be saved.");
+        }
+        var sessionResult = await crosswordSupabase.auth.getSession();
+        if(sessionResult.error) throw sessionResult.error;
+        if(!sessionResult.data.session){
+            document.getElementById("checkAnswers").disabled = false;
+            status.textContent = "Crossword ready. Sign in to StemChem to save game rewards; answer checking remains available here.";
+            return;
+        }
+        var result = await crosswordSupabase.functions.invoke("quiz", {
+            body: {
+                action: "start_crossword",
+                entries: entries.map(function(entry){
+                    return { topic: entry.topic, word: entry.word };
+                })
+            }
+        });
+        if(result.error) throw result.error;
+        if(buildToken !== crosswordBuildToken) return;
+        if(!result.data || !result.data.sessionId ||
+            !Array.isArray(result.data.questions) ||
+            result.data.questions.length !== entries.length){
+            throw new Error("The crossword server returned an invalid game session.");
+        }
+        crosswordSessionId = result.data.sessionId;
+        crosswordQuestionIds = result.data.questions.map(function(question){
+            return question.id;
+        });
+        crosswordClues.forEach(function(clue){
+            clue.questionId = crosswordQuestionIds[clue.index];
+        });
+        document.getElementById("checkAnswers").disabled = false;
+        status.textContent = entries.length + " words from selected topics. This crossword is ready to earn game XP.";
+    }catch(error){
+        if(buildToken !== crosswordBuildToken) return;
+        document.getElementById("checkAnswers").disabled = false;
+        status.setAttribute("role", "alert");
+        status.textContent = "A rewarded crossword could not be started: " +
+            (error && error.message ? error.message : "Please try again.");
+    }
 }
 
 function changeActiveClue(offset, focusGrid){
@@ -320,7 +381,7 @@ function handleGridKeydown(event){
     }
 }
 
-function checkAnswers(){
+async function checkAnswers(){
     var cells = document.querySelectorAll(".crossword-letter");
     var incorrect = 0;
 
@@ -336,6 +397,54 @@ function checkAnswers(){
     feedback.textContent = incorrect === 0
         ? "All answers are correct!"
         : incorrect + " square" + (incorrect === 1 ? " is" : "s are") + " incorrect or empty. so sad!";
+
+    if(!crosswordSessionId){
+        return;
+    }
+
+    var answers = {};
+    for(var i = 0; i < crosswordClues.length; i++){
+        var clue = crosswordClues[i];
+        var clueCells = Array.prototype.slice.call(getActiveClueCellsFor(clue));
+        clueCells.sort(function(left, right){
+            return parseInt(left.getAttribute("data-" + clue.direction + "-position"), 10) -
+                parseInt(right.getAttribute("data-" + clue.direction + "-position"), 10);
+        });
+        answers[clue.questionId] = clueCells.map(function(cell){ return cell.value; }).join("");
+    }
+
+    var sessionId = crosswordSessionId;
+    var submitButton = document.getElementById("checkAnswers");
+    submitButton.disabled = true;
+    feedback.textContent += " Saving verified result…";
+    try{
+        var result = await crosswordSupabase.functions.invoke("quiz", {
+            body: { action: "submit_crossword", sessionId: sessionId, answers: answers }
+        });
+        if(result.error) throw result.error;
+        if(sessionId !== crosswordSessionId) return;
+        if(!result.data || typeof result.data.score !== "number" ||
+            typeof result.data.total !== "number" || !result.data.progress){
+            throw new Error("The crossword server returned an invalid result.");
+        }
+        var multiplier = Number(result.data.multiplier).toFixed(1);
+        feedback.textContent = "Server verified " + result.data.score + " of " +
+            result.data.total + " words. " +
+            (result.data.awardedXp > 0
+                ? "+" + result.data.awardedXp + " XP at " + multiplier + "×."
+                : "This result earned 0 XP; rewards depend on performance and are limited to five completed games and 100 game XP per day.");
+        submitButton.disabled = true;
+    }catch(error){
+        feedback.textContent += " The result could not be saved: " +
+            (error && error.message ? error.message : "Please try again.");
+        submitButton.disabled = false;
+    }
+}
+
+function getActiveClueCellsFor(clue){
+    return document.querySelectorAll(
+        ".crossword-letter[data-" + clue.direction + "-index='" + clue.index + "']"
+    );
 }
 
 function addLegendToPage(groups){
@@ -349,7 +458,8 @@ function addLegendToPage(groups){
                 position: clue.position,
                 clue: clue.clue,
                 topic: clue.topic,
-                length: normalizeAnswer(clue.word).length
+                length: normalizeAnswer(clue.word).length,
+                questionId: crosswordQuestionIds[clue.index]
             });
         }
     }
