@@ -47,11 +47,11 @@ async function requireActiveUser(request: Request) {
     }
     const { data: profile, error } = await adminClient
         .from("profiles")
-        .select("is_active")
+        .select("role, is_active")
         .eq("id", identity.user.id)
         .maybeSingle();
-    if (error || !profile || !profile.is_active) {
-        throw new Error("This account is not active.");
+    if (error || !profile || profile.role !== "student" || !profile.is_active) {
+        throw new Error("This account is not active for games.");
     }
     return identity.user.id;
 }
@@ -102,7 +102,7 @@ async function startQuiz(userId: string, requestedTopic: unknown) {
     });
     const { data: session, error: sessionError } = await adminClient
         .from("quiz_sessions")
-        .insert({ user_id: userId, topic, question_ids: selected.map((question) => question.id) })
+        .insert({ user_id: userId, topic, game_type: "quiz", question_ids: selected.map((question) => question.id) })
         .select("id")
         .single();
     if (sessionError || !session) {
@@ -119,78 +119,122 @@ async function answerQuiz(userId: string, body: Record<string, unknown>) {
         typeof body.answer !== "string" || body.answer.length > 120) {
         throw new Error("That quiz answer is not valid.");
     }
+    const { data, error } = await adminClient.rpc("submit_quiz_answer", {
+        p_user_id: userId,
+        p_session_id: body.sessionId,
+        p_question_id: body.questionId,
+        p_selected_word: body.answer.trim()
+    }).single();
+    if (error || !data) {
+        throw new Error(error?.message || "Your answer could not be checked. Please try again.");
+    }
+    const progress = data.complete ? {
+        total_xp: data.total_xp,
+        daily_xp: data.daily_xp,
+        daily_date: data.daily_date,
+        completed_topics: data.completed_topics,
+        activity_dates: data.activity_dates,
+        learning_progress: data.learning_progress,
+        game_xp_multiplier: data.game_xp_multiplier
+    } : undefined;
+    return {
+        correct: data.correct,
+        correctAnswer: data.correct_answer,
+        awarded: data.awarded,
+        awardedXp: data.awarded_xp,
+        complete: data.complete,
+        passed: data.passed,
+        multiplier: data.game_xp_multiplier,
+        progress
+    };
+}
+
+async function startCrossword(userId: string, requestedEntries: unknown) {
+    if (!Array.isArray(requestedEntries) || requestedEntries.length < 2 || requestedEntries.length > 20) {
+        throw new Error("Build a crossword with 2–20 valid words.");
+    }
+    const entries = requestedEntries.map((value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+            throw new Error("The crossword word list is not valid.");
+        }
+        const entry = value as Record<string, unknown>;
+        if (typeof entry.topic !== "string" || !topicNames.includes(entry.topic) ||
+            typeof entry.word !== "string" || !entry.word.trim() || entry.word.length > 120) {
+            throw new Error("The crossword word list is not valid.");
+        }
+        return { topic: entry.topic, word: entry.word.trim() };
+    });
+    const topics = [...new Set(entries.map((entry) => entry.topic))];
+    const { data: bank, error: bankError } = await adminClient
+        .from("question_bank")
+        .select("id, topic, word")
+        .eq("active", true)
+        .in("topic", topics);
+    if (bankError || !bank) {
+        throw new Error("Could not verify the crossword word list.");
+    }
+    const byKey = new Map(bank.map((question) => [
+        `${question.topic}:${question.word.trim().toLocaleLowerCase()}`,
+        question
+    ]));
+    const selected = entries.map((entry) =>
+        byKey.get(`${entry.topic}:${entry.word.toLocaleLowerCase()}`)
+    );
+    const questions = selected.filter(
+        (question): question is NonNullable<typeof question> => question !== undefined
+    );
+    if (questions.length !== entries.length ||
+        new Set(questions.map((question) => question.id)).size !== questions.length) {
+        throw new Error("The crossword contains a word that is not in the approved game bank.");
+    }
     const { data: session, error: sessionError } = await adminClient
         .from("quiz_sessions")
-        .select("id, user_id, topic, question_ids, finished_at, created_at")
-        .eq("id", body.sessionId)
-        .eq("user_id", userId)
-        .maybeSingle();
-    if (sessionError || !session || session.finished_at ||
-        Date.now() - new Date(session.created_at).getTime() > 2 * 60 * 60 * 1000 ||
-        !session.question_ids.includes(body.questionId)) {
-        throw new Error("This quiz has expired or is no longer available.");
-    }
-
-    const { data: question, error: questionError } = await adminClient
-        .from("question_bank")
-        .select("id, word")
-        .eq("id", body.questionId)
-        .eq("active", true)
+        .insert({
+            user_id: userId,
+            topic: null,
+            game_type: "crossword",
+            question_ids: questions.map((question) => question.id)
+        })
+        .select("id")
         .single();
-    if (questionError || !question) {
-        throw new Error("That quiz question is no longer available.");
-    }
-    const isCorrect = body.answer.trim().toLocaleLowerCase() === question.word.trim().toLocaleLowerCase();
-    const { error: answerError } = await adminClient.from("quiz_session_answers").insert({
-        session_id: session.id,
-        question_id: question.id,
-        selected_word: body.answer.trim(),
-        is_correct: isCorrect
-    });
-    if (answerError) {
-        throw new Error("This question has already been answered.");
-    }
-
-    let awarded = false;
-    if (isCorrect) {
-        const { data, error } = await adminClient.rpc("award_quiz_xp", {
-            p_user_id: userId,
-            p_session_id: session.id,
-            p_question_id: question.id
-        }).maybeSingle();
-        if (error || !data) {
-            throw new Error("The answer was checked, but progress could not be saved. Please contact the researcher.");
-        }
-        awarded = data.awarded;
-    }
-
-    const { data: completion, error: completionError } = await adminClient.rpc("finish_quiz_session", {
-        p_session_id: session.id
-    }).maybeSingle();
-    if (completionError) {
-        throw new Error("Your answer was saved, but the quiz result could not be finalized.");
-    }
-    const { data: currentProgress, error: progressError } = await adminClient.from("student_progress")
-        .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
-        .eq("user_id", userId)
-        .single();
-    if (progressError || !currentProgress) {
-        throw new Error("Your answer was saved, but your progress could not be refreshed.");
-    }
-
-    const { count, error: countError } = await adminClient.from("quiz_session_answers")
-        .select("question_id", { count: "exact", head: true })
-        .eq("session_id", session.id);
-    if (countError) {
-        throw new Error("Could not load the quiz result.");
+    if (sessionError || !session) {
+        throw new Error("Could not start the crossword. Please try again.");
     }
     return {
-        correct: isCorrect,
-        correctAnswer: question.word,
-        awarded,
-        complete: count === session.question_ids.length,
-        passed: Boolean(completion?.passed),
-        progress: currentProgress
+        sessionId: session.id,
+        questions: questions.map(({ id, topic, word }) => ({ id, topic, word }))
+    };
+}
+
+async function submitCrossword(userId: string, body: Record<string, unknown>) {
+    if (!isUuid(body.sessionId) || !body.answers || typeof body.answers !== "object" ||
+        Array.isArray(body.answers) || Object.entries(body.answers).some(([id, answer]) =>
+            !isUuid(id) || typeof answer !== "string" || answer.length > 120
+        )) {
+        throw new Error("The crossword answers are not valid.");
+    }
+    const { data, error } = await adminClient.rpc("submit_crossword_attempt", {
+        p_user_id: userId,
+        p_session_id: body.sessionId,
+        p_answers: body.answers
+    }).single();
+    if (error || !data) {
+        throw new Error(error?.message || "Your crossword result could not be saved. Please try again.");
+    }
+    return {
+        score: data.score,
+        total: data.total,
+        awardedXp: data.awarded_xp,
+        multiplier: data.game_xp_multiplier,
+        progress: {
+            total_xp: data.total_xp,
+            daily_xp: data.daily_xp,
+            daily_date: data.daily_date,
+            completed_topics: data.completed_topics,
+            activity_dates: data.activity_dates,
+            learning_progress: data.learning_progress,
+            game_xp_multiplier: data.game_xp_multiplier
+        }
     };
 }
 
@@ -209,6 +253,12 @@ Deno.serve(async (request) => {
         }
         if (body.action === "answer") {
             return jsonResponse(200, await answerQuiz(userId, body));
+        }
+        if (body.action === "start_crossword") {
+            return jsonResponse(200, await startCrossword(userId, body.entries));
+        }
+        if (body.action === "submit_crossword") {
+            return jsonResponse(200, await submitCrossword(userId, body));
         }
         return jsonResponse(400, { error: "Unknown quiz action." });
     } catch (error) {
