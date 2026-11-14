@@ -7,8 +7,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "A particle made of a nucleus surrounded by electrons.",
             "The basic unit of matter that participates in ordinary chemical reactions."
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -19,8 +18,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "The region containing nearly all of an atom's mass."
 
         ],
-        exampleClue: [],
-        applicationClue: [],        
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -29,8 +27,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "The number of protons in an atom.",
             "The whole-number value that identifies an element on the periodic table.",
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -40,8 +37,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "The value on the periodic table is generally a weighted average of an elements naturally occurring isotopes.",
 
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -50,8 +46,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "A positively charged subatomic particle found in the nucleus of an atom.",
             "A nuclear particle with a relative charge of +1.",
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -61,8 +56,7 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "A nuclear particle that contributes to atomic mass without contributing to nuclear positive charge.",
             "A subatomic particle that can differ in number between isotopes of the same element."
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -71,17 +65,15 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
             "A negatively charged particle found outside the nucleus.",
             "A subatomic particle with a relative charge of -1.",
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
         word: "ion",
         clue: [
-            "An atom or group of atoms with an electrical charge due to gaining or losing electrons.",
+            "An atom or group of atoms with an electrical charge due to gaining or losing electrons."
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
@@ -89,22 +81,19 @@ window.CHEMISTRY_WORD_BANK["Atomic Structure"] = [
         clue: [
             "A positively charged ion formed by losing electrons."
         ],
-        exampleClue: [],
-        applicationClue: [],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
         word: "anion",
-        clue: "A negatively charged ion formed by gaining electrons.",
-        exampleClue: [],
-        applicationClue: [],
+        clue: ["A negatively charged ion formed by gaining electrons."],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     },
     {
         word: "isotopes",
-        clue: "Atoms of the same element with the same number of protons but different numbers of neutrons.",
-        exampleClue: [],
-        applicationClue: [],
+        clue: ["Atoms of the same element with the same number of protons but different numbers of neutrons."],
+        formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Atomic Structure"
     }
 ];
