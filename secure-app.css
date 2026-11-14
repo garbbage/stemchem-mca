@@ -63,6 +63,7 @@
 
 .admin-roster {
     width: 100%;
+    min-width: 720px;
     border-collapse: collapse;
     text-align: left;
 }
@@ -93,6 +94,10 @@
     margin-top: 4px;
     color: #89968c;
     font-size: 10px;
+}
+
+.admin-roster td:last-child {
+    min-width: 250px;
 }
 
 .roster-action {

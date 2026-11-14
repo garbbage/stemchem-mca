@@ -54,6 +54,7 @@ const wordLabelMap = {
 let toastTimer;
 let totalXp = 0;
 let dailyXp = 0;
+let gameXpMultiplier = 1.0;
 let completedTopics = [];
 let activityDates = [];
 let learningProgress = {};
@@ -74,6 +75,7 @@ function updateName(name) {
 function updateProgress(progress) {
     totalXp = progress.total_xp || 0;
     dailyXp = progress.daily_date === todayKey() ? (progress.daily_xp || 0) : 0;
+    gameXpMultiplier = Number(progress.game_xp_multiplier) || 1.0;
     completedTopics = Array.isArray(progress.completed_topics)
         ? progress.completed_topics.filter((topic) => topicNames.includes(topic))
         : [];
@@ -96,12 +98,15 @@ function showSignedOut() {
     currentProfile = null;
     totalXp = 0;
     dailyXp = 0;
+    gameXpMultiplier = 1.0;
     completedTopics = [];
     activityDates = [];
     learningProgress = {};
     authScreen.hidden = false;
     appShell.hidden = true;
     document.getElementById("adminNavLink").hidden = true;
+    document.getElementById("mobileAdminMenuLink").hidden = true;
+    closeMobileMoreMenu();
     document.getElementById("authPassword").value = "";
     document.getElementById("authUsername").value = "";
     if (window.location.hash) {
@@ -195,6 +200,8 @@ function updateXpDisplay() {
     document.getElementById("heroLevel").textContent = String(displayedLevel);
     document.getElementById("profilePageLevel").textContent = String(displayedLevel);
     document.getElementById("profileXp").textContent = `${totalXp} XP`;
+    document.getElementById("homeMultiplier").textContent = `${gameXpMultiplier.toFixed(1)}×`;
+    document.getElementById("profileMultiplier").textContent = `${gameXpMultiplier.toFixed(1)}×`;
     const score = Math.min(20, dailyXp);
     document.getElementById("goalScore").textContent = String(score);
     document.getElementById("goalProgress").style.width = `${score * 5}%`;
@@ -404,9 +411,9 @@ async function chooseAnswer(button, question) {
         );
         if (result.correct) {
             quizState.correct += 1;
-            quizFeedback.textContent = result.awarded
-                ? "Correct! +10 XP"
-                : "Correct! This question has already earned XP.";
+            quizFeedback.textContent = result.complete
+                ? `Correct! This round earned ${result.awardedXp} XP at ${Number(result.multiplier).toFixed(1)}×.`
+                : "Correct! Finish the round to receive your game reward.";
         } else {
             button.classList.add("incorrect");
             quizFeedback.textContent = `Not quite — the answer is ${formatWord(result.correctAnswer)}.`;
@@ -416,11 +423,19 @@ async function chooseAnswer(button, question) {
                 option.classList.add("correct");
             }
         });
-        updateProgress(result.progress);
+        if (result.complete) {
+            updateProgress(result.progress);
+        }
         quizState.serverPassed = result.passed;
         quizState.serverComplete = result.complete;
+        quizState.awardedXp = result.awardedXp;
+        quizState.multiplier = Number(result.multiplier) || gameXpMultiplier;
     } catch (error) {
-        quizFeedback.textContent = `${error.message} Start a new round if this question cannot be saved.`;
+        quizFeedback.textContent = `${error.message} Your answer was not confirmed; try submitting it again.`;
+        answerContainer.querySelectorAll(".answer-option").forEach((option) => {
+            option.disabled = false;
+        });
+        return;
     }
     document.getElementById("quizContinueButton").hidden = false;
 }
@@ -428,6 +443,9 @@ async function chooseAnswer(button, question) {
 function finishQuiz() {
     const passed = quizState.serverPassed;
     const complete = quizState.serverComplete;
+    const rewardMessage = quizState.awardedXp > 0
+        ? `You earned ${quizState.awardedXp} XP at ${quizState.multiplier.toFixed(1)}×.`
+        : "This score earned no XP. Rewards depend on performance and are capped at five completed games and 100 game XP per day.";
     document.getElementById("challengePrompt").textContent = complete
         ? `Round complete! You got ${quizState.correct} of ${quizState.questions.length} correct.`
         : "This round was not fully saved. Start another round to continue earning progress.";
@@ -435,8 +453,8 @@ function finishQuiz() {
     document.getElementById("quizFeedback").textContent = !complete
         ? "Only answers verified by the server count toward your progress."
         : quizState.completesUnit
-        ? passed ? "Unit cleared! The next unit is unlocked." : "Score 60% or higher to clear this unit and unlock the next."
-        : "Play again or study a unit word bank to keep your streak going.";
+        ? `${passed ? "Unit cleared! The next unit is unlocked." : "Score 60% or higher to clear this unit and unlock the next."} ${rewardMessage}`
+        : `Play again or study a unit word bank to keep your streak going. ${rewardMessage}`;
     const continueButton = document.getElementById("quizContinueButton");
     continueButton.textContent = "Done";
     continueButton.dataset.finished = "true";
@@ -515,12 +533,57 @@ document.getElementById("continueButton").addEventListener("click", () => {
 });
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
-    try {
-        await window.chemSecureApp.signOut();
-    } catch (error) {
-        showToast(error.message);
+    await logOut();
+});
+
+document.getElementById("mobileLogoutButton").addEventListener("click", async () => {
+    await logOut();
+});
+
+const mobileMoreButton = document.getElementById("mobileMoreButton");
+const mobileMoreMenu = document.getElementById("mobileMoreMenu");
+
+function closeMobileMoreMenu() {
+    mobileMoreMenu.hidden = true;
+    mobileMoreButton.setAttribute("aria-expanded", "false");
+}
+
+mobileMoreButton.addEventListener("click", () => {
+    mobileMoreMenu.hidden = !mobileMoreMenu.hidden;
+    mobileMoreButton.setAttribute("aria-expanded", String(!mobileMoreMenu.hidden));
+});
+
+document.addEventListener("click", (event) => {
+    if (!mobileMoreMenu.contains(event.target) && !mobileMoreButton.contains(event.target)) {
+        closeMobileMoreMenu();
     }
 });
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        closeMobileMoreMenu();
+    }
+});
+
+async function logOut() {
+    const buttons = [
+        document.getElementById("logoutButton"),
+        document.getElementById("mobileLogoutButton")
+    ];
+    buttons.forEach((button) => {
+        button.disabled = true;
+    });
+    try {
+        await window.chemSecureApp.signOut();
+        showSignedOut();
+    } catch (error) {
+        showToast(error.message);
+    } finally {
+        buttons.forEach((button) => {
+            button.disabled = false;
+        });
+    }
+}
 
 document.getElementById("passwordChangeForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -553,9 +616,10 @@ document.getElementById("displayNameForm").addEventListener("submit", async (eve
     button.disabled = true;
     feedback.textContent = "";
     try {
-        await window.chemSecureApp.updateDisplayName(displayName);
-        currentProfile.display_name = displayName;
-        updateName(displayName);
+        const updatedProfile = await window.chemSecureApp.updateDisplayName(displayName);
+        currentProfile.display_name = updatedProfile.display_name;
+        updateName(updatedProfile.display_name);
+        document.getElementById("profileDisplayName").value = updatedProfile.display_name;
         feedback.textContent = "Display name updated.";
     } catch (error) {
         feedback.textContent = error.message;
@@ -586,7 +650,7 @@ function showAppPage(pageName) {
             link.removeAttribute("aria-current");
         }
     });
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo(0, 0);
     if (selectedPage === "leaderboard") {
         loadLeaderboard();
     }
@@ -601,14 +665,42 @@ function showAppPage(pageName) {
 function navigateToPage(pageName) {
     const destination = `#${pageName}`;
     if (window.location.hash === destination) {
-        showAppPage(pageName);
-    } else {
-        window.location.hash = destination;
+        return;
     }
+    window.history.pushState(null, "", destination);
+    showAppPage(pageName);
 }
 
-window.addEventListener("hashchange", () => {
+document.querySelectorAll(".nav-link[href^='#'], .mobile-menu-link[href^='#'], .brand[href='#home']").forEach((link) => {
+    link.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (link.closest("#mobileMoreMenu")) {
+            closeMobileMoreMenu();
+        }
+        navigateToPage(link.dataset.page || link.getAttribute("href").slice(1));
+    });
+});
+
+function showCurrentRoute() {
+    closeMobileMoreMenu();
     showAppPage(window.location.hash.slice(1));
+}
+
+window.addEventListener("popstate", showCurrentRoute);
+
+window.addEventListener("pageshow", (event) => {
+    if (!event.persisted || !currentProfile) {
+        return;
+    }
+    window.chemSecureApp.refreshProgress()
+        .then((progress) => {
+            if (progress) {
+                updateProgress(progress);
+            }
+        })
+        .catch((error) => {
+            showToast(error.message);
+        });
 });
 
 async function loadLeaderboard() {
@@ -860,6 +952,7 @@ function handleAuthenticated(profile, progress) {
     authScreen.hidden = true;
     appShell.hidden = false;
     document.getElementById("adminNavLink").hidden = profile.role !== "admin";
+    document.getElementById("mobileAdminMenuLink").hidden = profile.role !== "admin";
     document.getElementById("profileDisplayName").value = profile.display_name;
     updateName(profile.display_name);
     updateProgress(progress);

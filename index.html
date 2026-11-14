@@ -63,7 +63,7 @@
                 <span>Stem<span class="brand-accent">Chem</span></span>
             </a>
 
-            <nav class="side-nav">
+            <nav class="side-nav" aria-label="Main pages">
                 <a class="nav-link active" href="#home" data-page="home">
                     <span class="nav-icon" aria-hidden="true">⌂</span> Home
                 </a>
@@ -85,6 +85,17 @@
                 <a class="nav-link admin-nav-link" id="adminNavLink" href="#admin" data-page="admin" hidden>
                     <span class="nav-icon" aria-hidden="true">⚙</span> Admin
                 </a>
+                <button class="nav-link mobile-more-button" id="mobileMoreButton" type="button" aria-expanded="false" aria-controls="mobileMoreMenu">
+                    <span class="nav-icon" aria-hidden="true">···</span><span>More</span>
+                </button>
+            </nav>
+            <nav class="mobile-more-menu" id="mobileMoreMenu" aria-label="More navigation" hidden>
+                <a class="mobile-menu-link" id="mobileAdminMenuLink" href="#admin" data-page="admin" hidden>
+                    <span aria-hidden="true">⚙</span> Admin
+                </a>
+                <button class="mobile-menu-link" id="mobileLogoutButton" type="button">
+                    <span aria-hidden="true">↪</span> Log out
+                </button>
             </nav>
 
             <div class="sidebar-bottom">
@@ -149,6 +160,12 @@
                             <div class="goal-foot"><strong id="goalRemaining">20 XP to go</strong></div>
                         </article>
 
+                        <article class="daily-card multiplier-card" aria-label="Game XP multiplier">
+                            <div class="daily-heading"><span class="daily-icon" aria-hidden="true">✨</span><div><h2>Game XP boost</h2></div></div>
+                            <div class="goal-score"><strong id="homeMultiplier">1.0×</strong><span> per eligible game</span></div>
+                            <p>Complete lessons to increase your multiplier: 1 lesson → 1.1×, 3 → 1.2×, 5 → 1.3×, 8 → 1.4×, 11 → 1.5× max.</p>
+                        </article>
+
                         <article class="streak-card">
                             <div class="streak-card-heading"><div><h2>Your streak</h2></div><img src="icons/Streak Activated_.png" alt=""></div>
                             <div class="week-days" aria-label="This week's activity">
@@ -197,7 +214,12 @@
                 </section>
 
                 <section class="app-page" id="page-games" aria-labelledby="gamesTitle" hidden>
-                    <div class="section-heading page-heading"><div><h1 id="gamesTitle">Practice</h1></div></div>
+                    <div class="section-heading page-heading">
+                        <div>
+                            <h1 id="gamesTitle">Practice</h1>
+                            <p class="subheading">Earn XP through verified game performance. Your lesson multiplier applies to eligible games; rewards are limited to five completed games and 100 game XP per day.</p>
+                        </div>
+                    </div>
                     <div class="practice-grid games-grid">
                         <a class="practice-card flash-card" href="crossword/example.html">
                             <span class="practice-icon"><img src="icons/Games.png" alt=""></span><span><strong>Chemistry crossword</strong><small>Use clues from your class word bank</small></span><span class="card-arrow">→</span>
@@ -242,6 +264,7 @@
                         <article class="profile-stat-card"><span>⭐</span><strong id="profileXp">0 XP</strong><small>Total experience</small></article>
                         <article class="profile-stat-card"><span>🔥</span><strong id="profileStreak">0 days</strong><small>Current streak</small></article>
                         <article class="profile-stat-card"><span>📚</span><strong id="profileUnits">0 of 12</strong><small>Lessons completed</small></article>
+                        <article class="profile-stat-card"><span>✨</span><strong id="profileMultiplier">1.0×</strong><small>Game XP multiplier · lessons unlock up to 1.5×</small></article>
                     </div>
                     <form class="password-change-form" id="displayNameForm">
                         <h2>Change display name</h2>
@@ -347,8 +370,8 @@
     <script src="wordbank/general-chemistry.js"></script>
     <script src="wordbank/index.js"></script>
     <script src="lessons/curriculum.js"></script>
-    <script src="lessons/learning-ui.js"></script>
-    <script src="secure-app.js"></script>
-    <script src="script.js"></script>
+    <script src="lessons/learning-ui.js?v=20261114"></script>
+    <script src="secure-app.js?v=20261114"></script>
+    <script src="script.js?v=20261114"></script>
 </body>
 </html>

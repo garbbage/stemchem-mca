@@ -84,7 +84,7 @@
 
             const { data: progress, error: progressError } = await db
                 .from("student_progress")
-                .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
+                .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress, game_xp_multiplier")
                 .eq("user_id", session.user.id)
                 .single();
             if (progressError || !progress) {
@@ -175,7 +175,7 @@
             throw new Error(error.message);
         }
     }
-    
+
     async function updateDisplayName(displayName) {
         const name = typeof displayName === "string" ? displayName.trim() : "";
         if (name.length < 1 || name.length > 60) {
@@ -188,13 +188,29 @@
             .from("profiles")
             .update({ display_name: name })
             .eq("id", activeUserId)
-            .select("id")
+            .select("id, display_name")
             .single();
         if (error || !data) {
             throw new Error(error?.message || "Could not update your display name.");
         }
+        return data;
     }
-    
+
+    async function refreshProgress() {
+        if (!activeUserId) {
+            return null;
+        }
+        const { data, error } = await ensureConfigured()
+            .from("student_progress")
+            .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress, game_xp_multiplier")
+            .eq("user_id", activeUserId)
+            .single();
+        if (error || !data) {
+            throw new Error(error?.message || "Could not refresh your learning progress.");
+        }
+        return data;
+    }
+
     async function adminRequest(body) {
         return callFunction("admin", body);
     }
@@ -247,6 +263,8 @@
         submitAnswer,
         updateLearning,
         updatePassword,
+        updateDisplayName,
+        refreshProgress,
         adminRequest,
         subscribeLeaderboard,
         isConfigured: () => configured
