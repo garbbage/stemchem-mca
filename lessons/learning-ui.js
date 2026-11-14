@@ -360,10 +360,11 @@
             fieldset.append(legend);
             const answers = createAnswerList(item, (button, choice) => {
                 fieldset.querySelectorAll("button").forEach((option) => {
-                    option.classList.remove("is-correct", "is-incorrect");
+                    option.classList.remove("is-selected", "is-correct", "is-incorrect");
                     option.setAttribute("aria-pressed", "false");
                 });
                 button.setAttribute("aria-pressed", "true");
+                button.classList.add("is-selected");
                 challengeAnswers[item.id || `q${index + 1}`] = choice.value;
             });
             fieldset.append(answers);
@@ -393,6 +394,7 @@
                     const fieldset = fieldsets[index];
                     fieldset.querySelectorAll("button").forEach((button) => {
                         button.disabled = true;
+                        button.classList.remove("is-selected");
                         if (button.dataset.answer === item.answer) {
                             button.classList.add("is-correct");
                         } else if (button.getAttribute("aria-pressed") === "true") {
@@ -410,7 +412,7 @@
                     fieldsets.forEach((fieldset) => {
                         fieldset.querySelectorAll("button").forEach((button) => {
                             button.disabled = false;
-                            button.classList.remove("is-correct", "is-incorrect");
+                            button.classList.remove("is-selected", "is-correct", "is-incorrect");
                             button.setAttribute("aria-pressed", "false");
                         });
                         const explanation = fieldset.querySelector(".lesson-feedback");
