@@ -118,7 +118,7 @@
 
     function topicIsUnlocked(lesson) {
         const index = lessons.indexOf(lesson);
-        return index === 0 || lessons
+        return progress.all_lessons_unlocked === true || index === 0 || lessons
             .slice(0, index)
             .every((previous) => completedTopicNames.includes(previous.topic));
     }
