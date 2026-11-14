@@ -70,19 +70,35 @@ async function listStudents() {
     const ids = (profiles || []).map((profile) => profile.id);
     const { data: progress, error: progressError } = ids.length
         ? await adminClient.from("student_progress")
-            .select("user_id, total_xp, daily_xp, daily_date, completed_topics, activity_dates")
+            .select("user_id, total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
             .in("user_id", ids)
         : { data: [], error: null };
     if (progressError) {
         throw new Error("Could not load student progress.");
     }
     const progressById = new Map((progress || []).map((row) => [row.user_id, row]));
-    return (profiles || []).map((profile) => ({
-        ...profile,
-        progress: progressById.get(profile.id) || {
-            total_xp: 0, daily_xp: 0, daily_date: null, completed_topics: [], activity_dates: []
-        }
-    }));
+    return (profiles || []).map((profile) => {
+        const studentProgress = progressById.get(profile.id) || {
+            total_xp: 0, daily_xp: 0, daily_date: null, completed_topics: [], activity_dates: [],
+            learning_progress: {}
+        };
+        const learningProgress = studentProgress.learning_progress;
+        return {
+            ...profile,
+            progress: {
+                total_xp: studentProgress.total_xp,
+                daily_xp: studentProgress.daily_xp,
+                daily_date: studentProgress.daily_date,
+                completed_topics: studentProgress.completed_topics,
+                activity_dates: studentProgress.activity_dates,
+                all_lessons_unlocked: Boolean(
+                    learningProgress &&
+                    typeof learningProgress === "object" &&
+                    learningProgress.all_lessons_unlocked === true
+                )
+            }
+        };
+    });
 }
 
 async function createStudent(body: Record<string, unknown>) {
@@ -159,7 +175,7 @@ async function changeStudent(body: Record<string, unknown>, action: string) {
         }
         return { success: true };
     }
-    
+
     if (action === "set_active") {
         if (typeof body.isActive !== "boolean") {
             throw new Error("Choose whether the student account should be active.");
@@ -176,6 +192,20 @@ async function changeStudent(body: Record<string, unknown>, action: string) {
             throw new Error("The profile status changed, but Supabase Auth could not be updated. Contact the researcher.");
         }
         return { success: true };
+    }
+
+    if (action === "unlock_all_lessons") {
+        const { error } = await adminClient.rpc("unlock_all_student_lessons", {
+            p_user_id: profile.id
+        });
+        if (error) {
+            throw new Error("Could not unlock all lessons for this student. Run the updated supabase/schema.sql and try again.");
+        }
+        return { success: true };
+    }
+
+    if (action !== "reset_password") {
+        throw new Error("Choose a valid student account action.");
     }
 
     const password = typeof body.temporaryPassword === "string" ? body.temporaryPassword : "";
@@ -236,6 +266,8 @@ Deno.serve(async (request) => {
                 return jsonResponse(200, await changeStudent(body, "rename_student"));
             case "reset_password":
                 return jsonResponse(200, await changeStudent(body, "reset_password"));
+            case "unlock_all_lessons":
+                return jsonResponse(200, await changeStudent(body, "unlock_all_lessons"));
             case "sync_questions":
                 return jsonResponse(200, await syncQuestionBank(body));
             default:
