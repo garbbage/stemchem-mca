@@ -284,10 +284,8 @@
                         });
                         feedback.textContent = `Your answer could not be verified by the learning service. ${item.explanation}`;
                         feedback.classList.add("is-incorrect");
-                    } else if (result.awarded) {
-                        feedback.textContent += " Practice complete — +3 XP.";
                     } else {
-                        feedback.textContent += " Practice complete; XP for this exercise was already earned.";
+                        feedback.textContent += " Practice complete.";
                     }
                 } catch (error) {
                     buttons.forEach((option) => {
@@ -403,7 +401,7 @@
                     });
                     fieldset.append(make("p", "lesson-feedback", item.explanation));
                 });
-                feedback.textContent = `You scored ${returnedScore} of ${activeLesson.challenge.length}. ${result.passed ? "Topic complete — the next topic is available." : "Review the sections and try again."}${result.awarded ? ` +${result.awardedXp} XP.` : ""}`;
+                feedback.textContent = `You scored ${returnedScore} of ${activeLesson.challenge.length}. ${result.passed ? "Topic complete — the next topic is available." : "Review the sections and try again."}`;
                 if (result.progress) {
                     integration.onProgress(result.progress);
                 }
@@ -512,7 +510,10 @@
         challengeAnswers = {};
         renderLesson();
         await save("position", { topic: activeLesson.slug, sectionIndex: activeSection });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        document.getElementById("lessonReading").scrollIntoView({
+            block: "start",
+            behavior: "smooth"
+        });
     }
 
     async function openTopic(slug) {
