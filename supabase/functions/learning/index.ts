@@ -27,6 +27,7 @@ type LearningState = {
     practice_completed: Record<string, number[]>;
     completed_lessons: string[];
     challenges: Record<string, { score: number; total: number; passed: boolean; mastered: boolean }>;
+    all_lessons_unlocked: boolean;
     current_topic?: string;
     current_section?: number;
 };
@@ -79,6 +80,7 @@ function normalizeState(value: unknown): LearningState {
             : {},
         completed_lessons: Array.isArray(state.completed_lessons) ? state.completed_lessons : [],
         challenges: state.challenges && typeof state.challenges === "object" ? state.challenges : {},
+        all_lessons_unlocked: state.all_lessons_unlocked === true,
         current_topic: state.current_topic,
         current_section: state.current_section
     };
@@ -107,18 +109,12 @@ async function saveState(userId: string, state: LearningState, completedTopics?:
                 : completedCount >= 3 ? 1.2
                     : completedCount >= 1 ? 1.1
                         : 1.0;
-    const update: Record<string, unknown> = {
-        learning_progress: state,
-        game_xp_multiplier: multiplier,
-        updated_at: new Date().toISOString()
-    };
-    if (completedTopics) {
-        update.completed_topics = completedTopics;
-    }
-    const { error } = await adminClient
-        .from("student_progress")
-        .update(update)
-        .eq("user_id", userId);
+    const { error } = await adminClient.rpc("save_student_learning_progress", {
+        p_user_id: userId,
+        p_learning_progress: state,
+        p_completed_topics: completedTopics || null,
+        p_multiplier: multiplier
+    });
     if (error) {
         throw new Error("Your lesson progress could not be saved. Please try again.");
     }
@@ -150,17 +146,17 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
     }
 
     const current = await loadProgress(userId);
+    const state = normalizeState(current.learning_progress);
     if (body.action !== "position") {
         const completedTopics = new Set(Array.isArray(current.completed_topics) ? current.completed_topics : []);
         const firstIncomplete = lessonSlugs.findIndex((lessonSlug) =>
             !completedTopics.has(lessons[lessonSlug].topic)
         );
         const latestUnlocked = firstIncomplete === -1 ? lessonSlugs.length - 1 : firstIncomplete;
-        if (lessonSlugs.indexOf(slug) > latestUnlocked) {
+        if (!state.all_lessons_unlocked && lessonSlugs.indexOf(slug) > latestUnlocked) {
             throw new Error("Complete the previous Chemistry topic challenge to continue.");
         }
     }
-    const state = normalizeState(current.learning_progress);
     state.current_topic = slug;
     if (needsSection) {
         state.current_section = sectionIndex;
