@@ -87,7 +87,7 @@ function normalizeState(value: unknown): LearningState {
 async function loadProgress(userId: string) {
     const { data, error } = await adminClient
         .from("student_progress")
-        .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress")
+        .select("total_xp, daily_xp, daily_date, completed_topics, activity_dates, learning_progress, game_xp_multiplier")
         .eq("user_id", userId)
         .single();
     if (error || !data) {
@@ -97,8 +97,19 @@ async function loadProgress(userId: string) {
 }
 
 async function saveState(userId: string, state: LearningState, completedTopics?: string[]) {
+    const completedLessons = new Set(
+        state.completed_lessons.filter((slug): slug is LessonSlug => isLessonSlug(slug))
+    );
+    const completedCount = completedLessons.size;
+    const multiplier = completedCount >= 11 ? 1.5
+        : completedCount >= 8 ? 1.4
+            : completedCount >= 5 ? 1.3
+                : completedCount >= 3 ? 1.2
+                    : completedCount >= 1 ? 1.1
+                        : 1.0;
     const update: Record<string, unknown> = {
         learning_progress: state,
+        game_xp_multiplier: multiplier,
         updated_at: new Date().toISOString()
     };
     if (completedTopics) {
@@ -114,18 +125,6 @@ async function saveState(userId: string, state: LearningState, completedTopics?:
     return loadProgress(userId);
 }
 
-async function award(userId: string, activityId: string, xp: number) {
-    const { data, error } = await adminClient.rpc("award_learning_xp", {
-        p_user_id: userId,
-        p_activity_id: activityId,
-        p_xp: xp
-    }).maybeSingle();
-    if (error || !data) {
-        throw new Error("Your XP could not be saved. Please try again.");
-    }
-    return Boolean(data.awarded);
-}
-
 function responseProgress(row: Awaited<ReturnType<typeof loadProgress>>) {
     return {
         total_xp: row.total_xp,
@@ -133,7 +132,8 @@ function responseProgress(row: Awaited<ReturnType<typeof loadProgress>>) {
         daily_date: row.daily_date,
         completed_topics: row.completed_topics,
         activity_dates: row.activity_dates,
-        learning_progress: normalizeState(row.learning_progress)
+        learning_progress: normalizeState(row.learning_progress),
+        game_xp_multiplier: row.game_xp_multiplier
     };
 }
 
@@ -143,8 +143,9 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
     }
     const slug = body.topic;
     const lesson = lessons[slug];
-    const sectionIndex = Number(body.sectionIndex);
-    if (!Number.isInteger(sectionIndex) || sectionIndex < 0 || sectionIndex > 2) {
+    const needsSection = body.action === "position" || body.action === "section" || body.action === "practice";
+    const sectionIndex = needsSection ? Number(body.sectionIndex) : -1;
+    if (needsSection && (!Number.isInteger(sectionIndex) || sectionIndex < 0 || sectionIndex >= lesson.check.length)) {
         throw new Error("Choose a valid lesson section.");
     }
 
@@ -161,7 +162,9 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
     }
     const state = normalizeState(current.learning_progress);
     state.current_topic = slug;
-    state.current_section = sectionIndex;
+    if (needsSection) {
+        state.current_section = sectionIndex;
+    }
 
     if (body.action === "position") {
         const saved = await saveState(userId, state);
@@ -184,18 +187,15 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
             return { correct: false, awarded: false, progress: responseProgress(current) };
         }
         const practices = new Set(state.practice_completed[slug] || []);
-        const firstCompletion = !practices.has(sectionIndex);
         practices.add(sectionIndex);
         state.practice_completed[slug] = Array.from(practices).sort((a, b) => a - b);
         const saved = await saveState(userId, state);
-        const awarded = firstCompletion && await award(userId, `practice:${slug}:${sectionIndex}`, 3);
-        const updated = await loadProgress(userId);
-        return { correct: true, awarded, awardedXp: awarded ? 3 : 0, progress: responseProgress(updated || saved) };
+        return { correct: true, progress: responseProgress(saved) };
     }
 
     if (body.action === "complete_lesson") {
         const sections = state.completed_sections[slug] || [];
-        if (sections.length < 3) {
+        if (![0, 1, 2].every((index) => sections.includes(index))) {
             throw new Error("Answer each section's quick check before completing the lesson.");
         }
         const firstCompletion = !state.completed_lessons.includes(slug);
@@ -203,9 +203,12 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
             state.completed_lessons.push(slug);
         }
         const saved = await saveState(userId, state);
-        const awarded = firstCompletion && await award(userId, `lesson:${slug}`, 10);
-        const updated = await loadProgress(userId);
-        return { awarded, awardedXp: awarded ? 10 : 0, progress: responseProgress(updated || saved) };
+        return {
+            completed: true,
+            firstCompletion,
+            game_xp_multiplier: saved.game_xp_multiplier,
+            progress: responseProgress(saved)
+        };
     }
 
     if (body.action === "challenge") {
@@ -240,22 +243,12 @@ async function handleLearning(userId: string, body: Record<string, unknown>) {
             completedTopics = [...completedTopics, lesson.topic];
         }
         const saved = await saveState(userId, state, completedTopics);
-        let awardedXp = 0;
-        if (passed && await award(userId, `challenge-pass:${slug}`, 5)) {
-            awardedXp += 5;
-        }
-        if (mastered && await award(userId, `challenge-mastery:${slug}`, 10)) {
-            awardedXp += 10;
-        }
-        const updated = await loadProgress(userId);
         return {
             score,
             total: lesson.challenge.length,
             passed: state.challenges[slug].passed,
             mastered: state.challenges[slug].mastered,
-            awarded: awardedXp > 0,
-            awardedXp,
-            progress: responseProgress(updated || saved)
+            progress: responseProgress(saved)
         };
     }
 
