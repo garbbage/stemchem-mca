@@ -6,6 +6,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
             "A substance that donates protons (H+) in a chemical reaction.",
             "Which kind of substance is defined by its ability to donate protons (H+)?"
         ],
+        extendedDefinition: "A substance that donates protons (H+) in a chemical reaction.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     },
@@ -15,6 +16,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
             "A substance that accepts protons (H+) in a chemical reaction.",
             "What is the Brønsted-Lowry name for a particle that accepts protons (H+)?"
         ],
+        extendedDefinition: "A substance that accepts protons (H+) in a chemical reaction.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     },
@@ -24,6 +26,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
             "An acid that ionizes nearly completely in water.",
             "Which kind of acid produces ions nearly completely when dissolved in water?"
         ],
+        extendedDefinition: "An acid that ionizes nearly completely in water.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     },
@@ -34,6 +37,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
             "A type of acid that can lose one proton and then another in separate stages.",
             "An acid with two ionizable hydrogen ions per molecule."
         ],
+        extendedDefinition: "An acid capable of donating two protons (H+) per molecule in a chemical reaction.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     },
@@ -44,6 +48,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
             "A chemical process in which acidic and basic properties counteract each other.",
         "A type of acid-base reaction involving proton transfer."
         ],
+        extendedDefinition: "A reaction between an acid and a base that typically produces salt and water.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     },
@@ -52,6 +57,7 @@ window.CHEMISTRY_WORD_BANK["Acids and Bases"] = [
         clue: [
             "A logarithmic scale used to specify the acidity or basicity of an aqueous solution based on hydrogen ion concentration."
         ],
+        extendedDefinition: "A logarithmic scale used to specify the acidity or basicity of an aqueous solution based on hydrogen ion concentration.",
         formula: {"explanation":[],"procedure":[],"equations":[],"available":false},
         topic: "Acids and Bases"
     }
