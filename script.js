@@ -266,7 +266,9 @@ function updateCurriculumProgress() {
 
     const lastTopic = lessons.find((lesson) => lesson.slug === learningProgress.current_topic);
     const firstIncomplete = lessons.find((lesson) => !completed.includes(lesson.slug));
-    const unlockedIndex = lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
+    const unlockedIndex = learningProgress.all_lessons_unlocked
+        ? -1
+        : lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
     const maxAvailableIndex = unlockedIndex === -1 ? lessons.length - 1 : unlockedIndex;
     const candidate = lastTopic &&
         !completed.includes(lastTopic.slug) &&
@@ -520,7 +522,9 @@ document.getElementById("continueButton").addEventListener("click", () => {
     const nextIncomplete = lessons.find((lesson) =>
         !(learningProgress.completed_lessons || []).includes(lesson.slug)
     );
-    const unlockedIndex = lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
+    const unlockedIndex = learningProgress.all_lessons_unlocked
+        ? -1
+        : lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic)); 
     const lastUnlockedIndex = unlockedIndex === -1 ? lessons.length - 1 : unlockedIndex;
     const topic = current &&
         !(learningProgress.completed_lessons || []).includes(current.slug) &&
@@ -818,7 +822,16 @@ function renderAdminRoster(students) {
         viewProgress.textContent = "View progress";
         viewProgress.dataset.action = "view_progress";
         viewProgress.dataset.userId = student.id;
-        actions.append(rename, toggle, reset, viewProgress);
+        const unlockLessons = document.createElement("button");
+        unlockLessons.className = "secondary-button roster-action";
+        unlockLessons.type = "button";
+        unlockLessons.textContent = student.progress.all_lessons_unlocked
+            ? "All lessons unlocked"
+            : "Unlock all lessons";
+        unlockLessons.disabled = student.progress.all_lessons_unlocked;
+        unlockLessons.dataset.action = "unlock_all_lessons";
+        unlockLessons.dataset.userId = student.id;
+        actions.append(rename, toggle, reset, viewProgress, unlockLessons);
         row.append(identity, status, xp, progress, actions);
         body.append(row);
     });
@@ -878,6 +891,12 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
                 userId: button.dataset.userId,
                 isActive: button.dataset.active === "true"
             });
+        } else if (button.dataset.action === "unlock_all_lessons") {
+            await window.chemSecureApp.adminRequest({
+                action: "unlock_all_lessons",
+                userId: button.dataset.userId
+            });
+            successMessage = "All lessons unlocked. Completed lessons and the XP multiplier remain unchanged.";
         } else {
             if (button.dataset.action === "reset_password") {
                 const temporaryPassword = window.prompt("Enter a new temporary password (6–128 characters).");
