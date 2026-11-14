@@ -21,12 +21,46 @@ create table if not exists public.student_progress (
     total_xp integer not null default 0 check (total_xp >= 0),
     daily_xp integer not null default 0 check (daily_xp >= 0),
     daily_date date not null default current_date,
+    game_xp_multiplier numeric(2, 1) not null default 1.0 check (game_xp_multiplier between 1.0 and 1.5),
     completed_topics text[] not null default '{}',
     activity_dates date[] not null default '{}',
     updated_at timestamptz not null default now()
 );
 alter table public.student_progress
     add column if not exists learning_progress jsonb not null default '{}'::jsonb;
+alter table public.student_progress
+    add column if not exists game_xp_multiplier numeric(2, 1) not null default 1.0
+    check (game_xp_multiplier between 1.0 and 1.5);
+
+with lesson_counts as (
+    select p.user_id, count(distinct completed.slug) as completed_count
+    from public.student_progress p
+    cross join lateral jsonb_array_elements_text(
+        case
+            when jsonb_typeof(p.learning_progress -> 'completed_lessons') = 'array'
+                then p.learning_progress -> 'completed_lessons'
+            else '[]'::jsonb
+        end
+    ) as completed(slug)
+    where completed.slug = any(array[
+        'measurements', 'atomic-structure', 'periodic-table', 'chemical-bonding',
+        'intermolecular-forces', 'states-of-matter', 'chemical-equations',
+        'chemical-reactions', 'gas-laws', 'solutions', 'acids-and-bases',
+        'thermochemistry'
+    ]::text[])
+    group by p.user_id
+)
+update public.student_progress p
+set game_xp_multiplier = case
+    when lesson_counts.completed_count >= 11 then 1.5
+    when lesson_counts.completed_count >= 8 then 1.4
+    when lesson_counts.completed_count >= 5 then 1.3
+    when lesson_counts.completed_count >= 3 then 1.2
+    when lesson_counts.completed_count >= 1 then 1.1
+    else 1.0
+end
+from lesson_counts
+where lesson_counts.user_id = p.user_id;
 
 create table if not exists public.learning_awards (
     user_id uuid not null references public.profiles(id) on delete cascade,
@@ -50,9 +84,25 @@ create table if not exists public.quiz_sessions (
     user_id uuid not null references auth.users(id) on delete cascade,
     topic text,
     question_ids uuid[] not null,
+    game_type text not null default 'quiz' check (game_type in ('quiz', 'crossword')),
     created_at timestamptz not null default now(),
     finished_at timestamptz
 );
+alter table public.quiz_sessions
+    add column if not exists game_type text not null default 'quiz'
+    check (game_type in ('quiz', 'crossword'));
+
+create table if not exists public.game_attempt_awards (
+    session_id uuid primary key references public.quiz_sessions(id) on delete cascade,
+    user_id uuid not null references public.profiles(id) on delete cascade,
+    score integer not null check (score >= 0),
+    total integer not null check (total > 0 and score <= total),
+    awarded_xp integer not null check (awarded_xp >= 0),
+    multiplier numeric(2, 1) not null check (multiplier between 1.0 and 1.5),
+    awarded_at timestamptz not null default now()
+);
+create index if not exists game_attempt_awards_user_date_idx
+    on public.game_attempt_awards (user_id, awarded_at);
 
 create table if not exists public.quiz_session_answers (
     session_id uuid not null references public.quiz_sessions(id) on delete cascade,
@@ -329,14 +379,367 @@ begin
 end;
 $$;
 
+create or replace function private.award_game_attempt(
+    p_user_id uuid,
+    p_session_id uuid,
+    p_score integer,
+    p_total integer,
+    p_difficulty numeric
+)
+returns table (awarded_xp integer, multiplier numeric)
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+    v_learning_progress jsonb;
+    v_lesson_count integer;
+    v_attempt_count integer;
+    v_daily_awarded integer;
+    v_base_xp integer;
+    v_xp integer;
+    v_multiplier numeric(2, 1);
+begin
+    if p_total < 1 or p_score < 0 or p_score > p_total
+       or p_difficulty not in (1.0, 1.2)
+       or not exists (
+           select 1 from public.quiz_sessions
+           where id = p_session_id and user_id = p_user_id and finished_at is not null
+       )
+       or not exists (
+           select 1 from public.profiles
+           where id = p_user_id and role = 'student' and is_active = true
+       ) then
+        raise exception 'Invalid game result';
+    end if;
+
+    select learning_progress into v_learning_progress
+    from public.student_progress
+    where user_id = p_user_id
+    for update;
+    if not found then
+        raise exception 'Student progress is not available';
+    end if;
+
+    select count(distinct lesson_slug)
+    into v_lesson_count
+    from jsonb_array_elements_text(
+        case
+            when jsonb_typeof(v_learning_progress -> 'completed_lessons') = 'array'
+                then v_learning_progress -> 'completed_lessons'
+            else '[]'::jsonb
+        end
+    ) as lessons(lesson_slug)
+    where lesson_slug = any(array[
+        'measurements', 'atomic-structure', 'periodic-table', 'chemical-bonding',
+        'intermolecular-forces', 'states-of-matter', 'chemical-equations',
+        'chemical-reactions', 'gas-laws', 'solutions', 'acids-and-bases',
+        'thermochemistry'
+    ]::text[]);
+
+    v_multiplier := case
+        when v_lesson_count >= 11 then 1.5
+        when v_lesson_count >= 8 then 1.4
+        when v_lesson_count >= 5 then 1.3
+        when v_lesson_count >= 3 then 1.2
+        when v_lesson_count >= 1 then 1.1
+        else 1.0
+    end;
+
+    update public.student_progress
+    set game_xp_multiplier = v_multiplier
+    where user_id = p_user_id
+      and game_xp_multiplier is distinct from v_multiplier;
+
+    select count(*), coalesce(sum(awards.awarded_xp), 0)
+    into v_attempt_count, v_daily_awarded
+    from public.game_attempt_awards as awards
+    where awards.user_id = p_user_id
+      and awards.awarded_at >= current_date::timestamptz
+      and awards.awarded_at < (current_date + 1)::timestamptz;
+
+    v_base_xp := p_score * 4 + case
+        when p_score = p_total then 8
+        when p_score >= ceil(p_total * 0.8) then 5
+        when p_score >= ceil(p_total * 0.6) then 2
+        else 0
+    end;
+    v_xp := case
+        when v_attempt_count >= 5 then 0
+        else least(
+            round(v_base_xp * v_multiplier * p_difficulty)::integer,
+            greatest(100 - v_daily_awarded, 0)
+        )
+    end;
+
+    insert into public.game_attempt_awards (
+        session_id, user_id, score, total, awarded_xp, multiplier
+    ) values (
+        p_session_id, p_user_id, p_score, p_total, v_xp, v_multiplier
+    );
+
+    if v_xp > 0 then
+        update public.student_progress
+        set total_xp = total_xp + v_xp,
+            daily_xp = case when daily_date = current_date then daily_xp + v_xp else v_xp end,
+            daily_date = current_date,
+            activity_dates = array(
+                select distinct activity_date
+                from unnest(activity_dates || current_date) as dates(activity_date)
+                order by activity_date
+            ),
+            updated_at = now()
+        where user_id = p_user_id;
+    end if;
+
+    return query select v_xp, v_multiplier;
+end;
+$$;
+
+create or replace function public.submit_quiz_answer(
+    p_user_id uuid,
+    p_session_id uuid,
+    p_question_id uuid,
+    p_selected_word text
+)
+returns table (
+    correct boolean,
+    correct_answer text,
+    awarded boolean,
+    awarded_xp integer,
+    complete boolean,
+    passed boolean,
+    game_xp_multiplier numeric,
+    total_xp integer,
+    daily_xp integer,
+    daily_date date,
+    completed_topics text[],
+    activity_dates date[],
+    learning_progress jsonb
+)
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+    v_session public.quiz_sessions%rowtype;
+    v_question_word text;
+    v_saved_word text;
+    v_is_correct boolean;
+    v_answer_count integer;
+    v_correct_count integer;
+    v_complete boolean;
+    v_passed boolean;
+    v_awarded_xp integer := 0;
+begin
+    if p_selected_word is null or length(p_selected_word) > 120 then
+        raise exception 'That quiz answer is not valid';
+    end if;
+
+    select * into v_session
+    from public.quiz_sessions
+    where id = p_session_id and user_id = p_user_id and game_type = 'quiz'
+    for update;
+    if not found or now() - v_session.created_at > interval '2 hours'
+       or not (p_question_id = any(v_session.question_ids)) then
+        raise exception 'This quiz has expired or is no longer available';
+    end if;
+
+    select word into v_question_word
+    from public.question_bank
+    where id = p_question_id and active = true;
+    if not found then
+        raise exception 'That quiz question is no longer available';
+    end if;
+
+    select selected_word into v_saved_word
+    from public.quiz_session_answers
+    where session_id = p_session_id and question_id = p_question_id;
+    if found then
+        if v_saved_word <> btrim(p_selected_word) then
+            raise exception 'This question has already been answered';
+        end if;
+    else
+        if v_session.finished_at is not null then
+            raise exception 'This quiz has already been completed';
+        end if;
+        v_is_correct := lower(btrim(p_selected_word)) = lower(btrim(v_question_word));
+        insert into public.quiz_session_answers (
+            session_id, question_id, selected_word, is_correct
+        ) values (
+            p_session_id, p_question_id, btrim(p_selected_word), v_is_correct
+        );
+    end if;
+
+    select count(*), count(*) filter (where is_correct)
+    into v_answer_count, v_correct_count
+    from public.quiz_session_answers
+    where session_id = p_session_id;
+    v_complete := v_session.finished_at is not null
+        or v_answer_count = cardinality(v_session.question_ids);
+    v_passed := v_complete
+        and v_correct_count >= ceil(cardinality(v_session.question_ids) * 0.6);
+
+    if v_session.finished_at is null and v_complete then
+        update public.quiz_sessions set finished_at = now() where id = p_session_id;
+        if v_passed and v_session.topic is not null then
+            update public.student_progress as progress
+            set completed_topics = array(
+                    select distinct topic_name
+                    from unnest(progress.completed_topics || v_session.topic) as topics(topic_name)
+                    order by topic_name
+                ),
+                updated_at = now()
+            where progress.user_id = p_user_id;
+        end if;
+        select result.awarded_xp into v_awarded_xp
+        from private.award_game_attempt(
+            p_user_id,
+            p_session_id,
+            v_correct_count,
+            cardinality(v_session.question_ids),
+            case when v_session.topic is null then 1.0 else 1.2 end
+        ) as result;
+    else
+        select awards.awarded_xp into v_awarded_xp
+        from public.game_attempt_awards as awards
+        where awards.session_id = p_session_id;
+        v_awarded_xp := coalesce(v_awarded_xp, 0);
+    end if;
+
+    select a.is_correct into v_is_correct
+    from public.quiz_session_answers a
+    where a.session_id = p_session_id and a.question_id = p_question_id;
+
+    return query
+    select
+        v_is_correct,
+        v_question_word,
+        v_awarded_xp > 0,
+        v_awarded_xp,
+        v_complete,
+        v_passed,
+        p.game_xp_multiplier,
+        case when v_complete then p.total_xp end,
+        case when v_complete then p.daily_xp end,
+        case when v_complete then p.daily_date end,
+        case when v_complete then p.completed_topics end,
+        case when v_complete then p.activity_dates end,
+        case when v_complete then p.learning_progress end
+    from public.student_progress p
+    where p.user_id = p_user_id;
+end;
+$$;
+
+create or replace function public.submit_crossword_attempt(
+    p_user_id uuid,
+    p_session_id uuid,
+    p_answers jsonb
+)
+returns table (
+    score integer,
+    total integer,
+    awarded_xp integer,
+    game_xp_multiplier numeric,
+    total_xp integer,
+    daily_xp integer,
+    daily_date date,
+    completed_topics text[],
+    activity_dates date[],
+    learning_progress jsonb
+)
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $$
+declare
+    v_session public.quiz_sessions%rowtype;
+    v_question record;
+    v_score integer := 0;
+    v_total integer;
+    v_awarded_xp integer := 0;
+begin
+    if p_answers is null or jsonb_typeof(p_answers) <> 'object' then
+        raise exception 'The crossword answers are not valid';
+    end if;
+
+    select * into v_session
+    from public.quiz_sessions
+    where id = p_session_id and user_id = p_user_id and game_type = 'crossword'
+    for update;
+    if not found or now() - v_session.created_at > interval '2 hours' then
+        raise exception 'This crossword has expired or is no longer available';
+    end if;
+
+    v_total := cardinality(v_session.question_ids);
+    if jsonb_object_length(p_answers) <> v_total then
+        raise exception 'Submit every word in this crossword';
+    end if;
+
+    if v_session.finished_at is not null then
+        select a.score, a.total, a.awarded_xp
+        into v_score, v_total, v_awarded_xp
+        from public.game_attempt_awards a
+        where a.session_id = p_session_id;
+    else
+        for v_question in
+            select id, word
+            from public.question_bank
+            where id = any(v_session.question_ids) and active = true
+        loop
+            if not (p_answers ? v_question.id::text)
+               or jsonb_typeof(p_answers -> v_question.id::text) <> 'string' then
+                raise exception 'Every crossword answer must be text';
+            end if;
+            if regexp_replace(p_answers ->> v_question.id::text, '[^A-Za-z]', '', 'g')
+                ~* ('^' || regexp_replace(v_question.word, '[^A-Za-z]', '', 'g') || '$') then
+                v_score := v_score + 1;
+            end if;
+        end loop;
+
+        if (select count(*) from public.question_bank
+            where id = any(v_session.question_ids) and active = true) <> v_total then
+            raise exception 'The crossword questions are no longer available';
+        end if;
+
+        update public.quiz_sessions set finished_at = now() where id = p_session_id;
+        select result.awarded_xp into v_awarded_xp
+        from private.award_game_attempt(
+            p_user_id, p_session_id, v_score, v_total, 1.0
+        ) as result;
+    end if;
+
+    return query
+    select
+        v_score,
+        v_total,
+        v_awarded_xp,
+        p.game_xp_multiplier,
+        p.total_xp,
+        p.daily_xp,
+        p.daily_date,
+        p.completed_topics,
+        p.activity_dates,
+        p.learning_progress
+    from public.student_progress p
+    where p.user_id = p_user_id;
+end;
+$$;
+
 revoke all on function public.award_quiz_xp(uuid, uuid, uuid) from public, anon, authenticated;
 revoke all on function public.finish_quiz_session(uuid) from public, anon, authenticated;
 revoke all on function public.award_learning_xp(uuid, text, integer) from public, anon, authenticated;
+revoke all on function public.award_quiz_xp(uuid, uuid, uuid) from service_role;
+revoke all on function public.finish_quiz_session(uuid) from service_role;
+revoke all on function public.award_learning_xp(uuid, text, integer) from service_role;
 revoke all on function public.initialize_student_progress() from public, anon, authenticated;
 revoke all on function public.sync_leaderboard_score() from public, anon, authenticated;
-grant execute on function public.award_quiz_xp(uuid, uuid, uuid) to service_role;
-grant execute on function public.finish_quiz_session(uuid) to service_role;
-grant execute on function public.award_learning_xp(uuid, text, integer) to service_role;
+revoke all on function private.award_game_attempt(uuid, uuid, integer, integer, numeric) from public, anon, authenticated;
+revoke all on function public.submit_quiz_answer(uuid, uuid, uuid, text) from public, anon, authenticated;
+revoke all on function public.submit_crossword_attempt(uuid, uuid, jsonb) from public, anon, authenticated;
+grant execute on function private.award_game_attempt(uuid, uuid, integer, integer, numeric) to service_role;
+grant execute on function public.submit_quiz_answer(uuid, uuid, uuid, text) to service_role;
+grant execute on function public.submit_crossword_attempt(uuid, uuid, jsonb) to service_role;
 
 alter table public.profiles enable row level security;
 alter table public.student_progress enable row level security;
@@ -346,6 +749,7 @@ alter table public.quiz_sessions enable row level security;
 alter table public.quiz_session_answers enable row level security;
 alter table public.question_awards enable row level security;
 alter table public.leaderboard_scores enable row level security;
+alter table public.game_attempt_awards enable row level security;
 
 drop policy if exists profiles_read_self on public.profiles;
 create policy profiles_read_self on public.profiles
@@ -367,13 +771,13 @@ for select to authenticated using (private.is_active_student());
 
 revoke all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
-    public.leaderboard_scores from anon, authenticated;
+    public.leaderboard_scores, public.game_attempt_awards from anon, authenticated;
 grant select on public.profiles, public.student_progress, public.leaderboard_scores to authenticated;
 revoke update (display_name) on public.profiles from authenticated;
 grant update (display_name) on public.profiles to authenticated;
 grant all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
-    public.leaderboard_scores to service_role;
+    public.leaderboard_scores, public.game_attempt_awards to service_role;
 
 do $$
 begin
