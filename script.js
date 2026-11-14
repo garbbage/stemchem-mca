@@ -291,7 +291,15 @@ function renderDictionary(searchTerm = "") {
     const query = searchTerm.trim().toLocaleLowerCase();
     const matches = wordBank.filter((entry) => {
         const clue = getClue(entry);
-        return `${entry.word} ${entry.topic} ${clue}`.toLocaleLowerCase().includes(query);
+        const formula = entry.formula || {};
+        const formulaText = [
+            ...(Array.isArray(formula.equations) ? formula.equations : []),
+            ...(Array.isArray(formula.explanation) ? formula.explanation : []),
+            ...(Array.isArray(formula.procedure) ? formula.procedure : [])
+        ].join(" ");
+        return `${entry.word} ${entry.topic} ${clue} ${entry.extendedDefinition || ""} ${formulaText}`
+            .toLocaleLowerCase()
+            .includes(query);
     });
     const list = document.getElementById("dictionaryList");
     list.replaceChildren();
@@ -317,6 +325,46 @@ function renderDictionary(searchTerm = "") {
         const definition = document.createElement("p");
         definition.textContent = getClue(entry);
         card.append(term, topic, definition);
+        if (entry.extendedDefinition) {
+            const extended = document.createElement("section");
+            extended.className = "dictionary-content";
+            const heading = document.createElement("h3");
+            heading.textContent = "Extended definition";
+            const detail = document.createElement("p");
+            detail.textContent = entry.extendedDefinition;
+            extended.append(heading, detail);
+            card.append(extended);
+        }
+        const formula = entry.formula;
+        if (formula && formula.available) {
+            const content = document.createElement("section");
+            content.className = "dictionary-content dictionary-formula";
+            const heading = document.createElement("h3");
+            heading.textContent = "Formula and method";
+            content.append(heading);
+            [
+                ["Equations", formula.equations],
+                ["Explanation", formula.explanation],
+                ["Procedure", formula.procedure]
+            ].forEach(([label, items]) => {
+                if (!Array.isArray(items) || !items.length) {
+                    return;
+                }
+                const subsection = document.createElement("div");
+                subsection.className = "dictionary-formula-section";
+                const subsectionTitle = document.createElement("h4");
+                subsectionTitle.textContent = label;
+                const list = document.createElement(label === "Procedure" ? "ol" : "ul");
+                items.forEach((item) => {
+                    const row = document.createElement("li");
+                    row.textContent = item;
+                    list.append(row);
+                });
+                subsection.append(subsectionTitle, list);
+                content.append(subsection);
+            });
+            card.append(content);
+        }
         list.append(card);
     });
 }
@@ -524,7 +572,7 @@ document.getElementById("continueButton").addEventListener("click", () => {
     );
     const unlockedIndex = learningProgress.all_lessons_unlocked
         ? -1
-        : lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic)); 
+        : lessons.findIndex((lesson) => !completedTopics.includes(lesson.topic));
     const lastUnlockedIndex = unlockedIndex === -1 ? lessons.length - 1 : unlockedIndex;
     const topic = current &&
         !(learningProgress.completed_lessons || []).includes(current.slug) &&

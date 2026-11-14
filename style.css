@@ -2334,6 +2334,37 @@ h1 span {
     line-height: 1.6;
 }
 
+.dictionary-content {
+    margin-top: 12px;
+    padding-top: 11px;
+    border-top: 1px solid #edf1ec;
+}
+
+.dictionary-content h3,
+.dictionary-formula-section h4 {
+    margin: 0 0 6px;
+    color: #49624f;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.dictionary-formula-section + .dictionary-formula-section {
+    margin-top: 10px;
+}
+
+.dictionary-formula-section ul,
+.dictionary-formula-section ol {
+    margin: 0;
+    padding-left: 18px;
+    color: #7d8981;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.dictionary-formula-section li + li {
+    margin-top: 3px;
+}
+
 .dictionary-empty {
     grid-column: 1 / -1;
     padding: 28px;
