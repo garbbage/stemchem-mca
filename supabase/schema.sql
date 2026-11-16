@@ -257,8 +257,8 @@ begin
         p_learning_progress,
         '{all_lessons_unlocked}',
         to_jsonb(
-            progress.learning_progress ->> 'all_lessons_unlocked' = 'true'
-            or p_learning_progress ->> 'all_lessons_unlocked' = 'true'
+            coalesce(progress.learning_progress ->> 'all_lessons_unlocked' = 'true', false)
+            or coalesce(p_learning_progress ->> 'all_lessons_unlocked' = 'true', false)
         ),
         true
     ),
@@ -745,7 +745,7 @@ begin
     end if;
 
     v_total := cardinality(v_session.question_ids);
-    if jsonb_object_length(p_answers) <> v_total then
+    if (select count(*) from jsonb_object_keys(p_answers)) <> v_total then
         raise exception 'Submit every word in this crossword';
     end if;
 
