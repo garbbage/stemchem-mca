@@ -271,6 +271,14 @@
     cursor: default;
 }
 
+.lesson-answer-option[aria-disabled="true"] {
+    cursor: default;
+}
+
+.lesson-answer-option[aria-disabled="true"]:not(.is-correct, .is-incorrect) {
+    opacity: 0.68;
+}
+
 .lesson-answer-option.is-correct {
     border-color: #318263;
     background: #e6f4ea;

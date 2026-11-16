@@ -7,6 +7,7 @@
     let integration = null;
     let challengeAnswers = {};
     let requestQueue = Promise.resolve();
+    let completingLesson = false;
     const diagrams = {
         measurements: {
             caption: "A measured result communicates value, unit, and resolution.",
@@ -228,46 +229,56 @@
             wrapper.append(hintButton, hint);
         }
 
+        let savingAnswer = false;
+        let answerSaved = false;
         const answers = createAnswerList(item, async (button, choice) => {
+            if (savingAnswer || answerSaved || button.dataset.failed === "true") {
+                return;
+            }
             const buttons = Array.from(answers.querySelectorAll("button"));
             const isCorrect = choice.value === item.answer;
-            if (isCorrect) {
+            if (!isCorrect) {
+                button.dataset.failed = "true";
+                button.setAttribute("aria-disabled", "true");
+                button.classList.add("is-incorrect");
+                feedback.textContent = `Not quite. ${item.explanation}`;
+                feedback.classList.remove("is-correct");
+                feedback.classList.add("is-incorrect");
+                return;
+            }
+
+            if (kind === "check") {
+                savingAnswer = true;
+                button.classList.add("is-correct");
+                feedback.textContent = `Correct. ${item.explanation} Saving your progress…`;
+                feedback.classList.add("is-correct");
+                feedback.classList.remove("is-incorrect");
+                const result = await save("section", {
+                    topic: activeLesson.slug,
+                    sectionIndex,
+                    answer: choice.value
+                });
+                savingAnswer = false;
+                if (!result || !result.correct) {
+                    button.classList.remove("is-correct");
+                    feedback.classList.remove("is-correct");
+                    feedback.classList.add("is-incorrect");
+                    feedback.textContent = `Your answer could not be saved. Try again when the connection is available. ${item.explanation}`;
+                    return;
+                }
+                answerSaved = true;
+                buttons.forEach((option) => option.setAttribute("aria-disabled", "true"));
+                feedback.textContent = `Correct. ${item.explanation}`;
+            } else if (isCorrect) {
+                feedback.textContent = `Correct. ${item.explanation}`;
+                feedback.classList.add("is-correct");
+                feedback.classList.remove("is-incorrect");
                 buttons.forEach((option) => {
                     option.disabled = true;
                     if (option.dataset.answer === item.answer) {
                         option.classList.add("is-correct");
                     }
                 });
-            } else {
-                button.classList.add("is-incorrect");
-                button.disabled = true;
-            }
-            feedback.textContent = `${isCorrect ? "Correct. " : "Not quite. "}${item.explanation}`;
-            feedback.classList.toggle("is-correct", isCorrect);
-            feedback.classList.toggle("is-incorrect", !isCorrect);
-
-            if (kind === "check") {
-                const result = await save("section", {
-                    topic: activeLesson.slug,
-                    sectionIndex,
-                    answer: choice.value
-                });
-                if (result && !result.correct) {
-                    feedback.textContent = `Your answer was not correct. Try another choice. ${item.explanation}`;
-                    if (isCorrect) {
-                        buttons.forEach((option) => {
-                            option.disabled = false;
-                            option.classList.remove("is-correct", "is-incorrect");
-                        });
-                    }
-                } else if (!result && isCorrect) {
-                    buttons.forEach((option) => {
-                        option.disabled = false;
-                        option.classList.remove("is-correct");
-                    });
-                    feedback.textContent = `Your answer could not be saved. Try again when the connection is available. ${item.explanation}`;
-                }
-            } else if (isCorrect) {
                 try {
                     const result = await sendRequest("practice", {
                         topic: activeLesson.slug,
@@ -548,15 +559,28 @@
     }
 
     async function next() {
+        if (completingLesson) {
+            return;
+        }
         if (activeSection < activeLesson.sections.length - 1) {
             await goToSection(activeSection + 1);
             return;
         }
-        const result = await save("complete_lesson", { topic: activeLesson.slug });
-        if (result && result.progress) {
-            integration.onProgress(result.progress);
+        completingLesson = true;
+        const nextButton = document.getElementById("nextLessonSection");
+        nextButton.disabled = true;
+        nextButton.textContent = "Saving lesson…";
+        try {
+            const result = await save("complete_lesson", { topic: activeLesson.slug });
+            if (result && result.completed && result.progress) {
+                integration.onToast("Lesson completed and saved. Returning to the learning path.");
+                integration.navigate("lessons");
+            } else {
+                updateLessonProgress();
+            }
+        } finally {
+            completingLesson = false;
         }
-        renderLesson();
     }
 
     function previous() {
