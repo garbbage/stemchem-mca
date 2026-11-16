@@ -7,7 +7,7 @@
 <script src="../theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <script src="../supabase-config.js"></script>
-<link rel="stylesheet" href="crossword.css?v=20261115" />
+<link rel="stylesheet" href="crossword.css?v=20261116" />
 <script type="text/javascript" src="crossword.js"></script>
 <script type="text/javascript" src="../wordbank/acids-and-bases.js"></script>
 <script type="text/javascript" src="../wordbank/atomic-structure.js"></script>
@@ -51,9 +51,11 @@ window.onload = function(){
         label.appendChild(document.createTextNode(" " + TOPICS[i]));
         topicFilters.appendChild(label);
     }
+    updateTopicSummary();
 
     topicFilters.addEventListener("change", function(){
         updateWordLimit();
+        updateTopicSummary();
         buildCrossword();
     });
     document.getElementById("wordCount").addEventListener("change", buildCrossword);
@@ -85,6 +87,11 @@ function getSelectedTopics(){
         selected.push(checkboxes[i].value);
     }
     return selected;
+}
+
+function updateTopicSummary(){
+    document.getElementById("topicSelectionSummary").textContent =
+        "Choose topics (" + getSelectedTopics().length + " selected)";
 }
 
 function getEntriesForSelectedTopics(){
@@ -289,9 +296,9 @@ function findNextIncompleteClue(startIndex){
 
 function createMobileKeyboard(){
     var keyboard = document.getElementById("mobileKeyboard");
-    ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach(function(rowText){
+    ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"].forEach(function(rowText, rowIndex){
         var row = document.createElement("div");
-        row.className = "keyboard-row";
+        row.className = "keyboard-row keyboard-row-" + (rowIndex + 1);
         for(var i = 0; i < rowText.length; i++){
             var key = document.createElement("button");
             key.type = "button";
@@ -661,10 +668,10 @@ function addLegendToPage(groups){
             <button class="theme-option" type="button" data-theme-choice="system" aria-pressed="false">System</button>
         </div>
         <section id="gamePanel" aria-label="Crossword game">
-            <fieldset class="word-bank-controls">
-                <legend>Choose topics</legend>
+            <details class="word-bank-controls" open>
+                <summary id="topicSelectionSummary">Choose topics</summary>
                 <div id="topicFilters"></div>
-            </fieldset>
+            </details>
             <div class="word-count-control">
                 <label for="wordCount">Words in crossword</label>
                 <input id="wordCount" type="number" min="2" value="10" />

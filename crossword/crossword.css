@@ -118,6 +118,16 @@ main {
     background: var(--surface);
 }
 
+.word-bank-controls > summary {
+    color: var(--teal);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.word-bank-controls[open] > summary {
+    margin-bottom: 12px;
+}
+
 #topicFilters {
     display: flex;
     flex-wrap: wrap;
@@ -218,16 +228,26 @@ main {
 }
 
 .keyboard-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 5px;
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: clamp(2px, 1vw, 5px);
+}
+
+.keyboard-row-2 {
+    width: 90%;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    margin-inline: auto;
+}
+
+.keyboard-row-3 {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.3fr);
 }
 
 .keyboard-key {
-    min-width: 38px;
+    width: 100%;
+    min-width: 0;
     min-height: 44px;
-    flex: 1 1 38px;
+    padding: 0 2px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--surface);
@@ -250,8 +270,6 @@ main {
 }
 
 .keyboard-delete {
-    max-width: 64px;
-    flex-basis: 52px;
     background: var(--surface-soft);
 }
 
