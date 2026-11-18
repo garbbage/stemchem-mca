@@ -145,6 +145,11 @@
             const number = make("div", "curriculum-number", String(index + 1).padStart(2, "0"));
             const icon = make("div", "curriculum-icon", lesson.icon);
             icon.setAttribute("aria-hidden", "true");
+            const statusIcon = document.createElement("img");
+            statusIcon.className = "curriculum-status-icon";
+            statusIcon.src = isUnlocked ? "icons/Unlock.png" : "icons/Lock.png";
+            statusIcon.alt = "";
+            icon.append(statusIcon);
             const copy = make("div", "curriculum-copy");
             const label = make("span", "unit-label", !isUnlocked ? "LOCKED" : isComplete ? "LESSON COMPLETED" : mastery.toUpperCase());
             const title = make("h3", "", lesson.topic === "IMF" ? "Intermolecular Forces" : lesson.topic);
@@ -573,6 +578,9 @@
         try {
             const result = await save("complete_lesson", { topic: activeLesson.slug });
             if (result && result.completed && result.progress) {
+                if (integration.onLessonComplete) {
+                    integration.onLessonComplete();
+                }
                 integration.onToast("Lesson completed and saved. Returning to the learning path.");
                 integration.navigate("lessons");
             } else {
