@@ -6,6 +6,7 @@ const authForm = document.getElementById("authForm");
 const authPasswordInput = document.getElementById("authPassword");
 const authFeedback = document.getElementById("authFeedback");
 let currentProfile = null;
+const defaultAvatar = "icons/Profile (Blue).png";
 const topicDetails = [
     { title: "Measurements", icon: "📏", description: "Measure matter and make every digit count." },
     { title: "Atomic Structure", icon: "⚛", description: "Explore the particles inside every atom." },
@@ -72,6 +73,84 @@ function updateName(name) {
     document.getElementById("profilePageName").textContent = name;
 }
 
+function updateAvatarImages(src) {
+    document.querySelectorAll(".profile-avatar-image").forEach((image) => {
+        image.src = src;
+    });
+    document.querySelectorAll(".avatar-choice").forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.avatarSrc === src));
+    });
+}
+
+function getAvatarStorageKey() {
+    return `stemchem-avatar-${currentProfile.id}`;
+}
+
+function loadProfileAvatar() {
+    let avatar = defaultAvatar;
+    try {
+        const savedAvatar = window.localStorage.getItem(getAvatarStorageKey());
+        const presetAvatar = Array.from(document.querySelectorAll(".avatar-choice"))
+            .some((button) => button.dataset.avatarSrc === savedAvatar);
+        if (presetAvatar || savedAvatar?.startsWith("data:image/jpeg;base64,")) {
+            avatar = savedAvatar;
+        }
+    } catch (error) {
+        console.warn("Could not read the saved profile picture.", error);
+        document.getElementById("avatarFeedback").textContent = "Could not load the saved profile picture on this device.";
+    }
+    updateAvatarImages(avatar);
+}
+
+function saveProfileAvatar(avatar) {
+    try {
+        window.localStorage.setItem(getAvatarStorageKey(), avatar);
+    } catch (error) {
+        throw new Error(`Could not save the profile picture on this device: ${error.message}`);
+    }
+    updateAvatarImages(avatar);
+}
+
+function createAvatarImage(file) {
+    return new Promise((resolve, reject) => {
+        const imageUrl = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+            URL.revokeObjectURL(imageUrl);
+            if (!image.naturalWidth || !image.naturalHeight) {
+                reject(new Error("That image could not be opened."));
+                return;
+            }
+            const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
+            const canvas = document.createElement("canvas");
+            canvas.width = 256;
+            canvas.height = 256;
+            const context = canvas.getContext("2d");
+            if (!context) {
+                reject(new Error("Your browser could not process that image."));
+                return;
+            }
+            context.drawImage(
+                image,
+                (image.naturalWidth - cropSize) / 2,
+                (image.naturalHeight - cropSize) / 2,
+                cropSize,
+                cropSize,
+                0,
+                0,
+                256,
+                256
+            );
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        image.onerror = () => {
+            URL.revokeObjectURL(imageUrl);
+            reject(new Error("That image could not be opened."));
+        };
+        image.src = imageUrl;
+    });
+}
+
 function updateProgress(progress) {
     totalXp = progress.total_xp || 0;
     dailyXp = progress.daily_date === todayKey() ? (progress.daily_xp || 0) : 0;
@@ -118,7 +197,9 @@ function showSignedOut() {
     document.getElementById("passwordChangeForm").reset();
     document.getElementById("passwordChangeFeedback").textContent = "";
     document.getElementById("adminFeedback").textContent = "";
+    document.getElementById("avatarFeedback").textContent = "";
     adminStudents = [];
+    updateAvatarImages(defaultAvatar);
     updateName("Chemist");
     window.ChemLearning.setProgress(learningProgress, completedTopics);
     updateXpDisplay();
@@ -233,7 +314,7 @@ function updateStreak() {
     document.getElementById("streakCount").textContent = String(streak);
     document.getElementById("profileStreak").textContent = `${streak} day${streak === 1 ? "" : "s"}`;
     document.querySelector(".streak-stat img").src = streak
-        ? "icons/Streak Activated_.png"
+        ? "icons/Streak Activated.png"
         : "icons/Streak Dead.png";
     document.getElementById("streakCaption").innerHTML = streak
         ? `<strong>${streak} day${streak === 1 ? "" : "s"} in a row!</strong> Come back tomorrow to keep your streak.`
@@ -291,13 +372,14 @@ function renderDictionary(searchTerm = "") {
     const query = searchTerm.trim().toLocaleLowerCase();
     const matches = wordBank.filter((entry) => {
         const clue = getClue(entry);
+        const definition = entry.extendedDefinition || clue;
         const formula = entry.formula || {};
         const formulaText = [
             ...(Array.isArray(formula.equations) ? formula.equations : []),
             ...(Array.isArray(formula.explanation) ? formula.explanation : []),
             ...(Array.isArray(formula.procedure) ? formula.procedure : [])
         ].join(" ");
-        return `${entry.word} ${entry.topic} ${clue} ${entry.extendedDefinition || ""} ${formulaText}`
+        return `${entry.word} ${entry.topic} ${clue} ${definition} ${formulaText}`
             .toLocaleLowerCase()
             .includes(query);
     });
@@ -323,48 +405,44 @@ function renderDictionary(searchTerm = "") {
         topic.className = "dictionary-topic";
         topic.textContent = topicNameMap.get(entry.topic)?.title || entry.topic;
         const definition = document.createElement("p");
-        definition.textContent = getClue(entry);
+        definition.textContent = entry.extendedDefinition || getClue(entry);
         card.append(term, topic, definition);
-        if (entry.extendedDefinition) {
-            const extended = document.createElement("section");
-            extended.className = "dictionary-content";
-            const heading = document.createElement("h3");
-            heading.textContent = "Extended definition";
-            const detail = document.createElement("p");
-            detail.textContent = entry.extendedDefinition;
-            extended.append(heading, detail);
-            card.append(extended);
-        }
         const formula = entry.formula;
-        if (formula && formula.available) {
-            const content = document.createElement("section");
-            content.className = "dictionary-content dictionary-formula";
-            const heading = document.createElement("h3");
-            heading.textContent = "Formula and method";
-            content.append(heading);
-            [
-                ["Equations", formula.equations],
-                ["Explanation", formula.explanation],
-                ["Procedure", formula.procedure]
-            ].forEach(([label, items]) => {
-                if (!Array.isArray(items) || !items.length) {
-                    return;
-                }
-                const subsection = document.createElement("div");
-                subsection.className = "dictionary-formula-section";
-                const subsectionTitle = document.createElement("h4");
-                subsectionTitle.textContent = label;
-                const list = document.createElement(label === "Procedure" ? "ol" : "ul");
-                items.forEach((item) => {
-                    const row = document.createElement("li");
-                    row.textContent = item;
-                    list.append(row);
-                });
-                subsection.append(subsectionTitle, list);
-                content.append(subsection);
+        const content = document.createElement("section");
+        content.className = "dictionary-content dictionary-formula";
+        const heading = document.createElement("h3");
+        heading.textContent = "Formula and method";
+        content.append(heading);
+        let hasFormulaContent = false;
+        [
+            ["Equations", formula?.equations],
+            ["Explanation", formula?.explanation],
+            ["Procedure", formula?.procedure]
+        ].forEach(([label, items]) => {
+            if (!Array.isArray(items) || !items.length) {
+                return;
+            }
+            hasFormulaContent = true;
+            const subsection = document.createElement("div");
+            subsection.className = "dictionary-formula-section";
+            const subsectionTitle = document.createElement("h4");
+            subsectionTitle.textContent = label;
+            const list = document.createElement(label === "Procedure" ? "ol" : "ul");
+            items.forEach((item) => {
+                const row = document.createElement("li");
+                row.textContent = item;
+                list.append(row);
             });
-            card.append(content);
+            subsection.append(subsectionTitle, list);
+            content.append(subsection);
+        });
+        if (!hasFormulaContent) {
+            const empty = document.createElement("p");
+            empty.className = "dictionary-formula-empty";
+            empty.textContent = "Formula details can be added here.";
+            content.append(empty);
         }
+        card.append(content);
         list.append(card);
     });
 }
@@ -384,6 +462,7 @@ function openFlashcards(topic) {
     document.getElementById("startTopicChallenge").textContent = "Start unit challenge →";
     renderFlashcard();
     lessonDialog.showModal();
+    window.ChemAudio.play("openMenu");
 }
 
 function renderFlashcard() {
@@ -447,6 +526,7 @@ function renderQuestion() {
 }
 
 async function chooseAnswer(button, question) {
+    window.ChemAudio.play("selectAnswer");
     const answerContainer = document.getElementById("challengeAnswers");
     answerContainer.querySelectorAll(".answer-option").forEach((option) => {
         option.disabled = true;
@@ -460,11 +540,13 @@ async function chooseAnswer(button, question) {
             button.dataset.answer
         );
         if (result.correct) {
+            window.ChemAudio.play("correctAnswer");
             quizState.correct += 1;
             quizFeedback.textContent = result.complete
                 ? `Correct! This round earned ${result.awardedXp} XP at ${Number(result.multiplier).toFixed(1)}×.`
                 : "Correct! Finish the round to receive your game reward.";
         } else {
+            window.ChemAudio.play("wrongAnswer");
             button.classList.add("incorrect");
             quizFeedback.textContent = `Not quite — the answer is ${formatWord(result.correctAnswer)}.`;
         }
@@ -510,6 +592,9 @@ function finishQuiz() {
     continueButton.dataset.finished = "true";
     continueButton.hidden = false;
     quizState.finished = true;
+    if (complete && quizState.completesUnit && passed) {
+        window.ChemAudio.play("completeLesson");
+    }
 }
 
 document.getElementById("quizContinueButton").addEventListener("click", () => {
@@ -603,6 +688,16 @@ function closeMobileMoreMenu() {
 mobileMoreButton.addEventListener("click", () => {
     mobileMoreMenu.hidden = !mobileMoreMenu.hidden;
     mobileMoreButton.setAttribute("aria-expanded", String(!mobileMoreMenu.hidden));
+    window.ChemAudio.play(mobileMoreMenu.hidden ? "closeMenu" : "openMenu");
+});
+
+lessonDialog.addEventListener("close", () => window.ChemAudio.play("closeMenu"));
+
+document.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (button && button.id !== "mobileMoreButton" && !button.classList.contains("answer-option")) {
+        window.ChemAudio.play("buttonClick");
+    }
 });
 
 document.addEventListener("click", (event) => {
@@ -677,6 +772,73 @@ document.getElementById("displayNameForm").addEventListener("submit", async (eve
         feedback.textContent = error.message;
     } finally {
         button.disabled = false;
+    }
+});
+
+document.querySelectorAll(".avatar-choice").forEach((button) => {
+    button.addEventListener("click", () => {
+        const feedback = document.getElementById("avatarFeedback");
+        try {
+            saveProfileAvatar(button.dataset.avatarSrc);
+            feedback.textContent = "Profile picture updated.";
+        } catch (error) {
+            feedback.textContent = error.message;
+        }
+    });
+});
+
+document.getElementById("profileAvatarUpload").addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files[0];
+    const feedback = document.getElementById("avatarFeedback");
+    if (!file) {
+        return;
+    }
+    if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type)) {
+        feedback.textContent = "Choose a PNG, JPEG, WebP, or GIF image.";
+        input.value = "";
+        return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        feedback.textContent = "Choose an image smaller than 5 MB.";
+        input.value = "";
+        return;
+    }
+    feedback.textContent = "Updating profile picture…";
+    try {
+        const avatar = await createAvatarImage(file);
+        saveProfileAvatar(avatar);
+        feedback.textContent = "Profile picture updated.";
+    } catch (error) {
+        feedback.textContent = error.message;
+    } finally {
+        input.value = "";
+    }
+});
+
+document.getElementById("resetProfileAvatarButton").addEventListener("click", () => {
+    const feedback = document.getElementById("avatarFeedback");
+    try {
+        window.localStorage.removeItem(getAvatarStorageKey());
+        updateAvatarImages(defaultAvatar);
+        feedback.textContent = "Profile picture reset.";
+    } catch (error) {
+        feedback.textContent = `Could not reset the profile picture: ${error.message}`;
+    }
+});
+
+const soundEffectsToggle = document.getElementById("soundEffectsToggle");
+const adminSettingsFeedback = document.getElementById("adminSettingsFeedback");
+soundEffectsToggle.checked = window.ChemAudio.isEnabled();
+soundEffectsToggle.addEventListener("change", () => {
+    try {
+        window.ChemAudio.setEnabled(soundEffectsToggle.checked);
+        adminSettingsFeedback.textContent = soundEffectsToggle.checked
+            ? "Sound effects enabled on this device."
+            : "Sound effects disabled on this device.";
+    } catch (error) {
+        soundEffectsToggle.checked = window.ChemAudio.isEnabled();
+        adminSettingsFeedback.textContent = error.message;
     }
 });
 
@@ -1021,6 +1183,7 @@ function handleAuthenticated(profile, progress) {
     document.getElementById("adminNavLink").hidden = profile.role !== "admin";
     document.getElementById("mobileAdminMenuLink").hidden = profile.role !== "admin";
     document.getElementById("profileDisplayName").value = profile.display_name;
+    loadProfileAvatar();
     updateName(profile.display_name);
     updateProgress(progress);
     showAppPage(window.location.hash.slice(1));
@@ -1036,7 +1199,8 @@ window.ChemLearning.configure({
     onProgress: updateProgress,
     onToast: showToast,
     navigate: navigateToPage,
-    openWords: openFlashcards
+    openWords: openFlashcards,
+    onLessonComplete: () => window.ChemAudio.play("completeLesson")
 });
 renderDictionary();
 showSignedOut();
