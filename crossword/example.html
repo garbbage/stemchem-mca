@@ -40,11 +40,6 @@ var crosswordSupabase = window.supabase && crosswordConfig.url && crosswordConfi
     : null;
 
 window.onload = function(){
-    document.addEventListener("click", function(event){
-        if(event.target.closest("button")){
-            window.ChemAudio.play("buttonClick");
-        }
-    });
     var topicFilters = document.getElementById("topicFilters");
     for(var i = 0; i < TOPICS.length; i++){
         var label = document.createElement("label");
@@ -431,10 +426,11 @@ function handleGridInput(event){
     if(!cell.classList.contains("crossword-letter")) return;
 
     var letters = normalizeAnswer(cell.value);
-    setGridLetter(cell, letters ? letters.charAt(letters.length - 1) : "", true);
+    if(letters) window.ChemAudio.play("crossword");
+    setGridLetter(cell, letters ? letters.charAt(letters.length - 1) : "", true, false);
 }
 
-function setGridLetter(cell, letter, advance){
+function setGridLetter(cell, letter, advance, playTypingSound){
     if(!cell || crosswordComplete || crosswordChecking) return;
     cell.value = letter;
     cell.classList.remove("is-correct", "is-incorrect");
@@ -443,6 +439,7 @@ function setGridLetter(cell, letter, advance){
     if(!cell.value) return;
     var clue = crosswordClues[activeClueIndex];
     if(!clue || !cell.hasAttribute("data-" + clue.direction + "-position")) return;
+    if(playTypingSound !== false) window.ChemAudio.play("crossword");
     if(advance === false) return;
     var clueCells = Array.prototype.slice.call(getActiveClueCells());
     clueCells.sort(function(left, right){
@@ -536,7 +533,6 @@ async function checkAnswers(){
     if(!crosswordSessionId){
         if(incorrect === 0){
             crosswordComplete = true;
-            window.ChemAudio.play("crossword");
             setPuzzleControlsDisabled(true);
             document.getElementById("checkAnswers").disabled = true;
             showCrosswordResults({ score: crosswordClues.length, total: crosswordClues.length, awardedXp: 0 }, false);
@@ -572,7 +568,6 @@ async function checkAnswers(){
             throw new Error("The crossword server returned an invalid result.");
         }
         crosswordComplete = true;
-        window.ChemAudio.play("crossword");
         showCrosswordResults(result.data, true);
     }catch(error){
         crosswordChecking = false;
