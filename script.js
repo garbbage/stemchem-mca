@@ -7,6 +7,14 @@ const authPasswordInput = document.getElementById("authPassword");
 const authFeedback = document.getElementById("authFeedback");
 let currentProfile = null;
 const defaultAvatar = "icons/Profile (Blue).png";
+const presetAvatars = [
+    "icons/Profile (Blue).png",
+    "icons/Profile (Green).png",
+    "icons/Profile (Orange).png",
+    "icons/Profile (Pink).png",
+    "icons/Profile (Purple).png",
+    "icons/Profile (Red).png"
+];
 const topicDetails = [
     { title: "Measurements", icon: "📏", description: "Measure matter and make every digit count." },
     { title: "Atomic Structure", icon: "⚛", description: "Explore the particles inside every atom." },
@@ -86,20 +94,26 @@ function getAvatarStorageKey() {
     return `stemchem-avatar-${currentProfile.id}`;
 }
 
-function loadProfileAvatar() {
-    let avatar = defaultAvatar;
+function getSavedProfileAvatar(profileId) {
+    if (typeof profileId !== "string" || !profileId) {
+        return null;
+    }
     try {
-        const savedAvatar = window.localStorage.getItem(getAvatarStorageKey());
-        const presetAvatar = Array.from(document.querySelectorAll(".avatar-choice"))
-            .some((button) => button.dataset.avatarSrc === savedAvatar);
-        if (presetAvatar || savedAvatar?.startsWith("data:image/jpeg;base64,")) {
-            avatar = savedAvatar;
-        }
+        const avatar = window.localStorage.getItem(`stemchem-avatar-${profileId}`);
+        return presetAvatars.includes(avatar) || avatar?.startsWith("data:image/jpeg;base64,")
+            ? avatar
+            : null;
     } catch (error) {
         console.warn("Could not read the saved profile picture.", error);
-        document.getElementById("avatarFeedback").textContent = "Could not load the saved profile picture on this device.";
+        if (profileId === currentProfile?.id) {
+            document.getElementById("avatarFeedback").textContent = "Could not load the saved profile picture on this device.";
+        }
+        return null;
     }
-    updateAvatarImages(avatar);
+}
+
+function loadProfileAvatar() {
+    updateAvatarImages(getSavedProfileAvatar(currentProfile.id) || defaultAvatar);
 }
 
 function saveProfileAvatar(avatar) {
@@ -694,13 +708,6 @@ mobileMoreButton.addEventListener("click", () => {
 lessonDialog.addEventListener("close", () => window.ChemAudio.play("closeMenu"));
 
 document.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (button && button.id !== "mobileMoreButton" && !button.classList.contains("answer-option")) {
-        window.ChemAudio.play("buttonClick");
-    }
-});
-
-document.addEventListener("click", (event) => {
     if (!mobileMoreMenu.contains(event.target) && !mobileMoreButton.contains(event.target)) {
         closeMobileMoreMenu();
     }
@@ -953,11 +960,18 @@ function renderLeaderboard(students) {
         const rank = document.createElement("span");
         rank.className = "leaderboard-rank";
         rank.textContent = String(index + 1);
+        const player = document.createElement("span");
+        player.className = "leaderboard-player";
+        const avatar = document.createElement("img");
+        avatar.className = "leaderboard-avatar";
+        avatar.src = getSavedProfileAvatar(student.user_id) || defaultAvatar;
+        avatar.alt = "";
         const name = document.createElement("strong");
         name.textContent = student.display_name;
         const xp = document.createElement("span");
         xp.textContent = `${student.total_xp} XP`;
-        row.append(rank, name, xp);
+        player.append(avatar, name);
+        row.append(rank, player, xp);
         list.append(row);
     });
     if (!students.length) {

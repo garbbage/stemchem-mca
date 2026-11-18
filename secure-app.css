@@ -147,6 +147,30 @@
     font-size: 12px;
 }
 
+.leaderboard-player {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.leaderboard-avatar {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border: 1px solid #dcefe1;
+    border-radius: 50%;
+    background: #edf7ee;
+    object-fit: cover;
+}
+
+.leaderboard-player strong {
+    overflow: hidden;
+    color: var(--ink);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .leaderboard-rank {
     color: #4a9367;
     font-weight: 900;

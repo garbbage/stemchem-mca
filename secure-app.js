@@ -221,7 +221,7 @@
         const db = ensureConfigured();
         const { data, error } = await db
             .from("leaderboard_scores")
-            .select("display_name, total_xp")
+            .select("user_id, display_name, total_xp")
             .order("total_xp", { ascending: false })
             .order("display_name", { ascending: true });
         if (error) {
@@ -242,7 +242,7 @@
         try {
             const { data, error } = await ensureConfigured()
                 .from("leaderboard_scores")
-                .select("display_name, total_xp")
+                .select("user_id, display_name, total_xp")
                 .order("total_xp", { ascending: false })
                 .order("display_name", { ascending: true });
             if (error) {

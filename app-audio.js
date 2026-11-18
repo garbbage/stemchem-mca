@@ -1,7 +1,6 @@
 (function () {
     const preferenceKey = "stemchem-sound-effects";
     const sounds = {
-        buttonClick: "buttonclick.mp3",
         openMenu: "openmenu.mp3",
         closeMenu: "closemenh.mp3",
         selectAnswer: "selectingasnwe.mp3",
@@ -11,7 +10,22 @@
         crossword: "crossword.mp3"
     };
     const audioDirectory = new URL("sfx/", document.currentScript.src);
+    const players = {};
     let enabled = true;
+    let activePlayer = null;
+
+    Object.entries(sounds).forEach(([name, fileName]) => {
+        const player = new Audio(new URL(fileName, audioDirectory).href);
+        player.preload = "auto";
+        player.volume = 0.35;
+        player.addEventListener("ended", () => {
+            if (activePlayer === player) {
+                activePlayer = null;
+            }
+        });
+        player.load();
+        players[name] = player;
+    });
 
     try {
         enabled = window.localStorage.getItem(preferenceKey) !== "false";
@@ -20,15 +34,21 @@
     }
 
     function play(name) {
-        const fileName = sounds[name];
-        if (!enabled || !fileName) {
+        const player = players[name];
+        if (!enabled || !player) {
             return;
         }
 
-        const audio = new Audio(new URL(fileName, audioDirectory).href);
-        audio.volume = 0.35;
-        audio.play().catch((error) => {
-            console.warn(`Could not play the ${name} sound effect.`, error);
+        if (activePlayer) {
+            activePlayer.pause();
+            activePlayer.currentTime = 0;
+        }
+        activePlayer = player;
+        player.currentTime = 0;
+        player.play().catch((error) => {
+            if (error.name !== "AbortError") {
+                console.warn(`Could not play the ${name} sound effect.`, error);
+            }
         });
     }
 
@@ -40,6 +60,11 @@
             throw new Error(`Could not save the sound-effects setting: ${error.message}`);
         }
         enabled = nextValue;
+        if (!enabled && activePlayer) {
+            activePlayer.pause();
+            activePlayer.currentTime = 0;
+            activePlayer = null;
+        }
     }
 
     window.ChemAudio = {
