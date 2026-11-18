@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Chemistry Crossword</title>
 <script src="../theme.js"></script>
+<script src="../app-audio.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
 <script src="../supabase-config.js"></script>
 <link rel="stylesheet" href="crossword.css?v=20261116" />
@@ -39,6 +40,11 @@ var crosswordSupabase = window.supabase && crosswordConfig.url && crosswordConfi
     : null;
 
 window.onload = function(){
+    document.addEventListener("click", function(event){
+        if(event.target.closest("button")){
+            window.ChemAudio.play("buttonClick");
+        }
+    });
     var topicFilters = document.getElementById("topicFilters");
     for(var i = 0; i < TOPICS.length; i++){
         var label = document.createElement("label");
@@ -530,6 +536,7 @@ async function checkAnswers(){
     if(!crosswordSessionId){
         if(incorrect === 0){
             crosswordComplete = true;
+            window.ChemAudio.play("crossword");
             setPuzzleControlsDisabled(true);
             document.getElementById("checkAnswers").disabled = true;
             showCrosswordResults({ score: crosswordClues.length, total: crosswordClues.length, awardedXp: 0 }, false);
@@ -565,6 +572,7 @@ async function checkAnswers(){
             throw new Error("The crossword server returned an invalid result.");
         }
         crosswordComplete = true;
+        window.ChemAudio.play("crossword");
         showCrosswordResults(result.data, true);
     }catch(error){
         crosswordChecking = false;
