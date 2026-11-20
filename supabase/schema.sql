@@ -19,25 +19,18 @@ create table if not exists public.profiles (
 alter table public.profiles
     add column if not exists avatar_path text;
 
-do $$
-begin
-    if not exists (
-        select 1 from pg_constraint
-        where conrelid = 'public.profiles'::regclass
-          and conname = 'profiles_avatar_path_valid'
-    ) then
-        alter table public.profiles
-            add constraint profiles_avatar_path_valid check (
-                avatar_path is null
-                or avatar_path = any(array[
-                    'preset:blue', 'preset:green', 'preset:orange',
-                    'preset:pink', 'preset:purple', 'preset:red'
-                ]::text[])
-                or avatar_path ~ ('^avatars/' || id::text || '/[0-9a-f-]{36}[.]jpg$')
-            );
-    end if;
-end;
-$$;
+alter table public.profiles
+    drop constraint if exists profiles_avatar_path_valid;
+alter table public.profiles
+    add constraint profiles_avatar_path_valid check (
+        avatar_path is null
+        or avatar_path = any(array[
+            'preset:blue', 'preset:green', 'preset:orange',
+            'preset:pink', 'preset:purple', 'preset:red'
+        ]::text[])
+        or avatar_path = 'avatars/' || id::text || '/avatar.jpg'
+        or avatar_path ~ ('^avatars/' || id::text || '/[0-9a-f-]{36}[.]jpg$')
+    );
 
 create table if not exists public.student_progress (
     user_id uuid primary key references public.profiles(id) on delete cascade,
