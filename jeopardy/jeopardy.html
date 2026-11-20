@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>STEMCHEM Jeopardy</title>
+    <link rel="icon" href="../icons/Games.png">
+    <link rel="stylesheet" href="jeopardy.css">
+    <script src="../theme.js"></script>
+    <script src="../app-audio.js"></script>
+</head>
+<body>
+    <main class="game-shell" id="gameShell">
+        <header class="game-header">
+            <a class="back-link" href="../index.html#games" aria-label="Back to games">← <span>Games</span></a>
+            <div class="game-brand">
+                <span class="brand-mark" aria-hidden="true">⚗</span>
+                <div><small>STEMCHEM</small><strong>JEOPARDY</strong></div>
+            </div>
+            <div class="header-actions">
+                <div class="score-chip"><span>Score</span><strong id="headerScore">0</strong></div>
+                <div class="score-chip opponent-score" id="opponentScoreChip" hidden><span id="opponentName">Opponent</span><strong id="opponentScore">0</strong></div>
+                <button class="icon-button" id="settingsButton" type="button" aria-label="Open audio settings">♪</button>
+            </div>
+        </header>
+
+        <section class="intro-screen" id="introScreen">
+            <div class="intro-orbit" aria-hidden="true"><span></span><b>JEOPARDY</b></div>
+            <p class="intro-kicker">THE CHEMISTRY CHALLENGE</p>
+            <h1>Know it. Name it.<br><em>Score it.</em></h1>
+            <div class="intro-copy">
+                <p>Choose a category and point value, then submit your answer before the clock runs out.</p>
+                <p class="dialogue" id="introDialogue">Welcome to STEMCHEM Jeopardy! Get ready to test your Chemistry knowledge and earn as many points as possible.</p>
+            </div>
+            <div class="mode-actions">
+                <button class="start-button" id="startGameButton" type="button">Play solo <span>→</span></button>
+                <button class="secondary-button pvp-start" id="pvpModeButton" type="button">2-player PvP <span>⚡</span></button>
+            </div>
+        </section>
+
+        <section class="matchmaking-screen" id="matchmakingScreen" hidden>
+            <div class="matchmaking-panel" id="searchingPanel">
+                <div class="search-orbit" aria-hidden="true"><span></span></div>
+                <p class="eyebrow">STEMCHEM LIVE MATCH</p>
+                <h1 id="matchmakingTitle">Ready to face a challenger?</h1>
+                <p id="matchmakingStatus">Find another authenticated Chem Game student and compete on the same board.</p>
+                <p class="matchmaking-error" id="matchmakingError" role="status" hidden></p>
+                <button class="start-button" id="findMatchButton" type="button">Find match <span>→</span></button>
+                <button class="secondary-button" id="cancelMatchButton" type="button" hidden>Cancel matchmaking</button>
+            </div>
+            <div class="matchmaking-panel match-found-panel" id="matchFoundPanel" hidden>
+                <p class="eyebrow">CHALLENGER FOUND</p>
+                <h1>Take your places.</h1>
+                <div class="versus-display">
+                    <div><small>YOU</small><strong id="myDisplayName">Player</strong><span id="myReadyStatus">Not ready</span></div>
+                    <b>VS</b>
+                    <div><small>CHALLENGER</small><strong id="opponentDisplayName">Player</strong><span id="opponentReadyStatus">Not ready</span></div>
+                </div>
+                <p id="readyStatusText">Confirm when you are ready to play.</p>
+                <button class="start-button" id="readyButton" type="button">I'm ready <span>→</span></button>
+                <button class="secondary-button" id="declineMatchButton" type="button">Decline match</button>
+                <p class="countdown-message" id="startCountdown" hidden></p>
+            </div>
+        </section>
+
+        <section class="board-screen" id="boardScreen" hidden>
+            <div class="board-toolbar">
+                <div>
+                    <p class="eyebrow">Choose your clue</p>
+                    <h2 id="roundTitle">The board</h2>
+                </div>
+                <div class="round-progress"><span id="remainingCount">25</span><small>clues left</small></div>
+            </div>
+            <p class="board-scroll-hint">Swipe to see all five categories</p>
+            <div class="board-wrap">
+                <div class="jeopardy-board" id="jeopardyBoard" aria-label="Jeopardy game board"></div>
+            </div>
+        </section>
+
+        <section class="question-screen" id="questionScreen" hidden>
+            <div class="question-stage">
+                <div class="question-meta">
+                    <span id="questionCategory">Category</span>
+                    <strong id="questionPoints">$200</strong>
+                </div>
+                <div class="buzz-status" id="buzzStatus" hidden>
+                    <strong id="buzzPrompt">Buzz in!</strong>
+                    <button class="buzz-button" id="buzzButton" type="button">BUZZ</button>
+                    <span id="buzzTurnStatus"></span>
+                </div>
+                <div class="timer-ring" id="timerRing">
+                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <circle class="timer-track" cx="60" cy="60" r="52"></circle>
+                        <circle class="timer-progress" id="timerProgress" cx="60" cy="60" r="52"></circle>
+                    </svg>
+                    <strong id="timerValue">30</strong>
+                </div>
+                <p class="question-clue" id="questionClue"></p>
+                <form class="answer-form" id="answerForm" autocomplete="off">
+                    <label for="answerInput">Your answer</label>
+                    <div class="answer-row">
+                        <input id="answerInput" name="answer" type="text" maxlength="120" placeholder="Type the chemistry term" required>
+                        <button class="submit-button" id="submitAnswerButton" type="submit">Submit</button>
+                    </div>
+                </form>
+                <div class="answer-result" id="answerResult" hidden>
+                    <div>
+                        <small id="resultLabel">Correct</small>
+                        <strong id="correctAnswerText"></strong>
+                    </div>
+                    <button class="continue-button" id="continueButton" type="button">Back to the board →</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="pvp-final-screen" id="pvpFinalScreen" hidden>
+            <p class="intro-kicker">MATCH COMPLETE</p>
+            <h1 id="pvpWinnerTitle">Final scores</h1>
+            <p class="score-difference" id="scoreDifference"></p>
+            <div class="pvp-results">
+                <article><small id="resultPlayerOneName">Player one</small><strong id="resultPlayerOneScore">0</strong><p id="resultPlayerOneStats"></p><div id="resultPlayerOneXp"></div></article>
+                <b class="versus-mark">VS</b>
+                <article><small id="resultPlayerTwoName">Player two</small><strong id="resultPlayerTwoScore">0</strong><p id="resultPlayerTwoStats"></p><div id="resultPlayerTwoXp"></div></article>
+            </div>
+            <p class="xp-policy-note">PvP XP is computed and saved by Chem Game's secure server. Disconnects do not earn completion bonuses.</p>
+            <a class="start-button" href="../index.html#games">Exit game</a>
+        </section>
+
+        <section class="final-screen" id="finalScreen" hidden>
+            <p class="intro-kicker">GAME COMPLETE</p>
+            <h1 id="finalTitle">Final score</h1>
+            <div class="final-score"><span id="finalScore">0</span><small>points</small></div>
+            <div class="final-stats">
+                <div><strong id="correctCount">0</strong><span>Correct</span></div>
+                <div><strong id="incorrectCount">0</strong><span>Incorrect</span></div>
+                <div><strong id="unansweredCount">0</strong><span>Unanswered</span></div>
+                <div><strong id="completedCount">0</strong><span>Completed</span></div>
+            </div>
+            <div class="final-actions">
+                <button class="secondary-button" id="playAgainButton" type="button">Play again</button>
+                <a class="start-button" href="../index.html#games">Exit game</a>
+            </div>
+        </section>
+    </main>
+
+    <dialog class="settings-dialog" id="settingsDialog">
+        <button class="dialog-close" id="closeSettingsButton" type="button" aria-label="Close settings">×</button>
+        <p class="eyebrow">Audio settings</p>
+        <h2>Sound</h2>
+        <label class="setting-row"><span><strong>Background music</strong><small>STEMCHEM game music</small></span><input id="musicToggle" type="checkbox"></label>
+        <label class="setting-row volume-row"><span>Music volume</span><input id="musicVolume" type="range" min="0" max="1" step="0.05"></label>
+        <label class="setting-row"><span><strong>Sound effects</strong><small>Selections and answer feedback</small></span><input id="effectsToggle" type="checkbox"></label>
+        <label class="setting-row volume-row"><span>Effects volume</span><input id="effectsVolume" type="range" min="0" max="1" step="0.05"></label>
+        <p class="missing-audio" id="missingAudio">Narrator recordings were not found in this project, so narration is displayed as text.</p>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="../secure-app.js"></script>
+    <script src="jeopardy.js"></script>
+</body>
+</html>
