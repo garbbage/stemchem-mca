@@ -3,7 +3,7 @@ window.JEOPARDY_QUESTIONS["Acids and Bases"] = [
     {
         id: "acids-200-1",
         points: 200,
-        clue: "This branch of science focuses on the composition, structure, properties, and changes of matter.",
+        clue: "This substance donates hydrogen ions when dissolved in water.",
         possibleAnswers: [
             "acid",
             "acids"
