@@ -15,6 +15,15 @@ const presetAvatars = [
     "icons/Profile (Purple).png",
     "icons/Profile (Red).png"
 ];
+const avatarPresetPaths = new Map([
+    ["preset:blue", presetAvatars[0]],
+    ["preset:green", presetAvatars[1]],
+    ["preset:orange", presetAvatars[2]],
+    ["preset:pink", presetAvatars[3]],
+    ["preset:purple", presetAvatars[4]],
+    ["preset:red", presetAvatars[5]]
+]);
+const avatarPathByPreset = new Map([...avatarPresetPaths].map(([path, source]) => [source, path]));
 const topicDetails = [
     { title: "Measurements", icon: "📏", description: "Measure matter and make every digit count." },
     { title: "Atomic Structure", icon: "⚛", description: "Explore the particles inside every atom." },
@@ -113,16 +122,36 @@ function getSavedProfileAvatar(profileId) {
 }
 
 function loadProfileAvatar() {
-    updateAvatarImages(getSavedProfileAvatar(currentProfile.id) || defaultAvatar);
-}
-
-function saveProfileAvatar(avatar) {
-    try {
-        window.localStorage.setItem(getAvatarStorageKey(), avatar);
-    } catch (error) {
-        throw new Error(`Could not save the profile picture on this device: ${error.message}`);
+    const path = currentProfile.avatar_path;
+    const preset = avatarPresetPaths.get(path);
+    if (preset) {
+        updateAvatarImages(preset);
+        return;
     }
-    updateAvatarImages(avatar);
+    const localAvatar = getSavedProfileAvatar(currentProfile.id);
+    if (!path || !path.startsWith("avatars/")) {
+        updateAvatarImages(localAvatar || defaultAvatar);
+        if (localAvatar) {
+            document.getElementById("avatarFeedback").textContent =
+                "This picture is only saved on this device. Choose it again or upload it to share with classmates.";
+        }
+        return;
+    }
+    updateAvatarImages(localAvatar || defaultAvatar);
+    window.chemSecureApp.profileAvatarUrls([path])
+        .then((urls) => {
+            if (currentProfile?.avatar_path === path) {
+                if (urls[path]) {
+                    updateAvatarImages(urls[path]);
+                } else {
+                    document.getElementById("avatarFeedback").textContent =
+                        "Your shared profile picture could not be loaded. Try uploading it again.";
+                }
+            }
+        })
+        .catch((error) => {
+            document.getElementById("avatarFeedback").textContent = error.message;
+        });
 }
 
 function createAvatarImage(file) {
@@ -155,7 +184,13 @@ function createAvatarImage(file) {
                 256,
                 256
             );
-            resolve(canvas.toDataURL("image/jpeg", 0.85));
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error("Your browser could not prepare that picture."));
+                    return;
+                }
+                resolve(blob);
+            }, "image/jpeg", 0.85);
         };
         image.onerror = () => {
             URL.revokeObjectURL(imageUrl);
@@ -782,14 +817,32 @@ document.getElementById("displayNameForm").addEventListener("submit", async (eve
     }
 });
 
+function setAvatarControlsDisabled(disabled) {
+    document.querySelectorAll(".avatar-choice, #profileAvatarUpload, #resetProfileAvatarButton")
+        .forEach((control) => { control.disabled = disabled; });
+}
+
 document.querySelectorAll(".avatar-choice").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
         const feedback = document.getElementById("avatarFeedback");
+        const path = avatarPathByPreset.get(button.dataset.avatarSrc);
+        if (!path) {
+            feedback.textContent = "That profile picture is not available.";
+            return;
+        }
+        setAvatarControlsDisabled(true);
+        feedback.textContent = "Updating profile picture…";
         try {
-            saveProfileAvatar(button.dataset.avatarSrc);
-            feedback.textContent = "Profile picture updated.";
+            const result = await window.chemSecureApp.setProfileAvatar(path);
+            currentProfile.avatar_path = result.avatar_path;
+            updateAvatarImages(button.dataset.avatarSrc);
+            feedback.textContent = result.cleanupError
+                ? `Profile picture updated, but the previous upload could not be removed: ${result.cleanupError}`
+                : "Profile picture updated and shared with classmates.";
         } catch (error) {
             feedback.textContent = error.message;
+        } finally {
+            setAvatarControlsDisabled(false);
         }
     });
 });
@@ -812,25 +865,52 @@ document.getElementById("profileAvatarUpload").addEventListener("change", async 
         return;
     }
     feedback.textContent = "Updating profile picture…";
+    setAvatarControlsDisabled(true);
     try {
-        const avatar = await createAvatarImage(file);
-        saveProfileAvatar(avatar);
-        feedback.textContent = "Profile picture updated.";
+        const imageBlob = await createAvatarImage(file);
+        const result = await window.chemSecureApp.uploadProfileAvatar(imageBlob);
+        currentProfile.avatar_path = result.avatar_path;
+        if (result.avatar_url) {
+            updateAvatarImages(result.avatar_url);
+            feedback.textContent = result.cleanupError
+                ? `Picture shared, but the previous upload could not be removed: ${result.cleanupError}`
+                : "Picture uploaded and shared with classmates.";
+        } else {
+            updateAvatarImages(defaultAvatar);
+            feedback.textContent = result.previewError || "Picture saved, but its preview could not be loaded.";
+        }
     } catch (error) {
         feedback.textContent = error.message;
     } finally {
         input.value = "";
+        setAvatarControlsDisabled(false);
     }
 });
 
-document.getElementById("resetProfileAvatarButton").addEventListener("click", () => {
+document.getElementById("resetProfileAvatarButton").addEventListener("click", async () => {
     const feedback = document.getElementById("avatarFeedback");
+    setAvatarControlsDisabled(true);
+    feedback.textContent = "Resetting profile picture…";
     try {
-        window.localStorage.removeItem(getAvatarStorageKey());
+        const result = await window.chemSecureApp.setProfileAvatar(null);
+        currentProfile.avatar_path = result.avatar_path;
         updateAvatarImages(defaultAvatar);
-        feedback.textContent = "Profile picture reset.";
+        let notices = [];
+        if (result.cleanupError) {
+            notices.push(`The previous upload could not be removed: ${result.cleanupError}`);
+        }
+        try {
+            window.localStorage.removeItem(getAvatarStorageKey());
+        } catch (error) {
+            notices.push(`The old local copy could not be removed: ${error.message}`);
+        }
+        feedback.textContent = notices.length
+            ? `Profile picture reset. ${notices.join(" ")}`
+            : "Profile picture reset.";
     } catch (error) {
         feedback.textContent = `Could not reset the profile picture: ${error.message}`;
+    } finally {
+        setAvatarControlsDisabled(false);
     }
 });
 
@@ -953,6 +1033,12 @@ function renderLeaderboard(students) {
     if (!list || !currentProfile) {
         return;
     }
+    const avatarStatus = document.getElementById("leaderboardAvatarStatus");
+    const avatarLoadFailed = students.some((student) => student.avatar_load_failed);
+    avatarStatus.hidden = !avatarLoadFailed;
+    avatarStatus.textContent = avatarLoadFailed
+        ? "Some shared profile pictures could not be loaded. Refresh the page to try again."
+        : "";
     list.replaceChildren();
     students.forEach((student, index) => {
         const row = document.createElement("li");
@@ -964,8 +1050,13 @@ function renderLeaderboard(students) {
         player.className = "leaderboard-player";
         const avatar = document.createElement("img");
         avatar.className = "leaderboard-avatar";
-        avatar.src = getSavedProfileAvatar(student.user_id) || defaultAvatar;
+        avatar.src = avatarPresetPaths.get(student.avatar_path) || student.avatar_url || defaultAvatar;
+        avatar.loading = "lazy";
         avatar.alt = "";
+        avatar.onerror = () => {
+            avatar.onerror = null;
+            avatar.src = defaultAvatar;
+        };
         const name = document.createElement("strong");
         name.textContent = student.display_name;
         const xp = document.createElement("span");
@@ -1197,6 +1288,7 @@ function handleAuthenticated(profile, progress) {
     document.getElementById("adminNavLink").hidden = profile.role !== "admin";
     document.getElementById("mobileAdminMenuLink").hidden = profile.role !== "admin";
     document.getElementById("profileDisplayName").value = profile.display_name;
+    document.getElementById("avatarFeedback").textContent = "";
     loadProfileAvatar();
     updateName(profile.display_name);
     updateProgress(progress);

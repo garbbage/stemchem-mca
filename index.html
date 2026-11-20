@@ -225,6 +225,9 @@
                         <a class="practice-card flash-card" href="crossword/example.html">
                             <span class="practice-icon"><img src="icons/Games.png" alt=""></span><span><strong>Chemistry crossword</strong><small>Use clues from your class word bank</small></span><span class="card-arrow">→</span>
                         </a>
+                        <a class="practice-card" href="jeopardy/jeopardy.html">
+                            <span class="practice-icon" aria-hidden="true">⚗</span><span><strong>STEMCHEM Jeopardy</strong><small>Race across chemistry categories for points</small></span><span class="card-arrow">→</span>
+                        </a>
                         <button class="practice-card puzzle-card" id="wordSprintButton" type="button">
                             <span class="practice-icon" aria-hidden="true">⚡</span><span><strong>Word bank sprint</strong><small>Race through 5 chemistry clues</small></span><span class="card-arrow">→</span>
                         </button>
@@ -238,6 +241,7 @@
                     <div class="section-heading page-heading"><div><h1 id="leaderboardTitle">Class leaderboard</h1></div></div>
                     <article class="leaderboard-card">
                         <div class="leaderboard-heading"><div><h2>Class rankings</h2></div><span class="trophy" aria-hidden="true">🏆</span></div>
+                        <p class="leaderboard-avatar-status" id="leaderboardAvatarStatus" aria-live="polite" hidden></p>
                         <div class="class-leaderboard-empty"><span aria-hidden="true">👩‍🔬</span><strong>Make it a team quest</strong><p>Connect your class roster to compete for XP and celebrate your top chemists.</p><small>Class rankings need shared class data.</small></div>
                     </article>
                 </section>
@@ -295,7 +299,7 @@
                     <section class="profile-preferences avatar-preferences" aria-labelledby="avatarTitle">
                         <div>
                             <h2 id="avatarTitle">Profile picture</h2>
-                            <p>Choose an avatar or upload your own image. It is saved on this device for your account.</p>
+                            <p>Choose an avatar or upload a square-cropped picture. Your choice is shared with classmates on the leaderboard.</p>
                         </div>
                         <div class="avatar-picker" id="avatarPicker" role="group" aria-label="Choose a profile picture">
                             <button class="avatar-choice" type="button" data-avatar-src="icons/Profile (Blue).png" aria-label="Blue avatar" aria-pressed="false"><img src="icons/Profile (Blue).png" alt=""></button>

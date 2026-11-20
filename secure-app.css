@@ -135,6 +135,12 @@
     list-style: none;
 }
 
+.leaderboard-avatar-status {
+    margin: 12px 0 0;
+    color: #9a5a21;
+    font-size: 12px;
+}
+
 .leaderboard-row {
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) auto;

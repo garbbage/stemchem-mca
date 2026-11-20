@@ -70,6 +70,12 @@
     window.ChemAudio = {
         play,
         isEnabled: () => enabled,
-        setEnabled
+        setEnabled,
+        setVolume: (volume) => {
+            const nextVolume = Math.max(0, Math.min(1, Number(volume)));
+            Object.values(players).forEach((player) => {
+                player.volume = nextVolume;
+            });
+        }
     };
 })();
