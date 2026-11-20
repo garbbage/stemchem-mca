@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.quiz]
 verify_jwt = true
+
+[functions.learning]
+verify_jwt = true
+
+[functions.jeopardy-pvp]
+verify_jwt = true

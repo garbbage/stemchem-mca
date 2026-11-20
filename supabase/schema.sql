@@ -11,10 +11,33 @@ create table if not exists public.profiles (
         and position('..' in student_id) = 0
     ),
     display_name text not null check (length(btrim(display_name)) between 1 and 60),
+    avatar_path text,
     role text not null default 'student' check (role in ('student', 'admin')),
     is_active boolean not null default true,
     created_at timestamptz not null default now()
 );
+alter table public.profiles
+    add column if not exists avatar_path text;
+
+do $$
+begin
+    if not exists (
+        select 1 from pg_constraint
+        where conrelid = 'public.profiles'::regclass
+          and conname = 'profiles_avatar_path_valid'
+    ) then
+        alter table public.profiles
+            add constraint profiles_avatar_path_valid check (
+                avatar_path is null
+                or avatar_path = any(array[
+                    'preset:blue', 'preset:green', 'preset:orange',
+                    'preset:pink', 'preset:purple', 'preset:red'
+                ]::text[])
+                or avatar_path ~ ('^avatars/' || id::text || '/[0-9a-f-]{36}[.]jpg$')
+            );
+    end if;
+end;
+$$;
 
 create table if not exists public.student_progress (
     user_id uuid primary key references public.profiles(id) on delete cascade,
@@ -123,8 +146,11 @@ create table if not exists public.question_awards (
 create table if not exists public.leaderboard_scores (
     user_id uuid primary key references public.profiles(id) on delete cascade,
     display_name text not null,
-    total_xp integer not null default 0 check (total_xp >= 0)
+    total_xp integer not null default 0 check (total_xp >= 0),
+    avatar_path text
 );
+alter table public.leaderboard_scores
+    add column if not exists avatar_path text;
 
 create or replace function private.is_active_student()
 returns boolean
@@ -152,6 +178,7 @@ declare
     v_name text;
     v_role text;
     v_active boolean;
+    v_avatar_path text;
     v_xp integer;
 begin
     if tg_table_name = 'profiles' then
@@ -163,20 +190,23 @@ begin
         v_name := new.display_name;
         v_role := new.role;
         v_active := new.is_active;
+        v_avatar_path := new.avatar_path;
         select total_xp into v_xp from public.student_progress where user_id = v_user_id;
     else
         v_user_id := new.user_id;
-        select display_name, role, is_active
-        into v_name, v_role, v_active
+        select display_name, role, is_active, avatar_path
+        into v_name, v_role, v_active, v_avatar_path
         from public.profiles where id = v_user_id;
         v_xp := new.total_xp;
     end if;
 
     if v_role = 'student' and v_active then
-        insert into public.leaderboard_scores (user_id, display_name, total_xp)
-        values (v_user_id, v_name, coalesce(v_xp, 0))
+        insert into public.leaderboard_scores (user_id, display_name, total_xp, avatar_path)
+        values (v_user_id, v_name, coalesce(v_xp, 0), v_avatar_path)
         on conflict (user_id) do update
-        set display_name = excluded.display_name, total_xp = excluded.total_xp;
+        set display_name = excluded.display_name,
+            total_xp = excluded.total_xp,
+            avatar_path = excluded.avatar_path;
     else
         delete from public.leaderboard_scores where user_id = v_user_id;
     end if;
@@ -853,8 +883,8 @@ revoke all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores, public.game_attempt_awards from anon, authenticated;
 grant select on public.profiles, public.student_progress, public.leaderboard_scores to authenticated;
-revoke update (display_name) on public.profiles from authenticated;
-grant update (display_name) on public.profiles to authenticated;
+revoke update (display_name, avatar_path) on public.profiles from authenticated;
+grant update (display_name, avatar_path) on public.profiles to authenticated;
 grant all on public.profiles, public.student_progress, public.question_bank,
     public.learning_awards, public.quiz_sessions, public.quiz_session_answers, public.question_awards,
     public.leaderboard_scores, public.game_attempt_awards to service_role;
