@@ -204,6 +204,35 @@ async function changeStudent(body: Record<string, unknown>, action: string) {
         return { success: true };
     }
 
+    if (action === "adjust_xp") {
+        const amount = typeof body.amount === "number" ? Math.trunc(body.amount) : 0;
+        if (!Number.isInteger(amount) || amount === 0) {
+            throw new Error("Enter a valid non-zero amount to reward or deduct XP.");
+        }
+        const { data: progress, error: progressError } = await adminClient
+            .from("student_progress")
+            .select("total_xp, daily_xp")
+            .eq("user_id", profile.id)
+            .single();
+        if (progressError || !progress) {
+            throw new Error("Could not find the student's progress record.");
+        }
+        const nextTotal = Math.max(0, (progress.total_xp || 0) + amount);
+        const nextDaily = Math.max(0, (progress.daily_xp || 0) + (amount > 0 ? amount : 0));
+        const { error: updateError } = await adminClient
+            .from("student_progress")
+            .update({
+                total_xp: nextTotal,
+                daily_xp: nextDaily,
+                updated_at: new Date().toISOString()
+            })
+            .eq("user_id", profile.id);
+        if (updateError) {
+            throw new Error(`Could not update student XP: ${updateError.message}`);
+        }
+        return { success: true, total_xp: nextTotal, delta: amount };
+    }
+
     if (action !== "reset_password") {
         throw new Error("Choose a valid student account action.");
     }
@@ -268,6 +297,8 @@ Deno.serve(async (request) => {
                 return jsonResponse(200, await changeStudent(body, "reset_password"));
             case "unlock_all_lessons":
                 return jsonResponse(200, await changeStudent(body, "unlock_all_lessons"));
+            case "adjust_xp":
+                return jsonResponse(200, await changeStudent(body, "adjust_xp"));
             case "sync_questions":
                 return jsonResponse(200, await syncQuestionBank(body));
             default:
