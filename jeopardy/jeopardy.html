@@ -24,17 +24,80 @@
             </div>
         </header>
 
-        <section class="intro-screen" id="introScreen">
-            <div class="intro-orbit" aria-hidden="true"><span></span><b>JEOPARDY</b></div>
-            <p class="intro-kicker">THE CHEMISTRY CHALLENGE</p>
-            <h1>Know it. Name it.<br><em>Score it.</em></h1>
-            <div class="intro-copy">
-                <p>Choose a category and point value, then submit your answer before the clock runs out.</p>
-                <p class="dialogue" id="introDialogue">Welcome to STEMCHEM Jeopardy! Get ready to test your Chemistry knowledge and earn as many points as possible.</p>
+        <section class="intro-screen tv-studio-lobby" id="introScreen">
+            <div class="tv-scanlines" aria-hidden="true"></div>
+
+            <div class="tv-broadcast-bar" aria-label="Studio broadcast status">
+                <div class="broadcast-left">
+                    <span class="live-badge"><span class="live-dot" aria-hidden="true"></span> ON AIR</span>
+                    <span class="studio-badge">STAGE 1 · CHEMISTRY LAB STUDIO</span>
+                </div>
+                <div class="broadcast-right">
+                    <span class="tech-spec">FEED 1080i · 60 FPS</span>
+                    <span class="tape-counter">REC 00:26:11</span>
+                </div>
             </div>
-            <div class="mode-actions">
-                <button class="start-button" id="startGameButton" type="button">Play solo <span>→</span></button>
-                <button class="secondary-button pvp-start" id="pvpModeButton" type="button">2-player PvP <span>⚡</span></button>
+
+            <div class="lobby-stage-center">
+                <div class="tv-marquee-glow" aria-hidden="true"></div>
+                <div class="tv-marquee-card">
+                    <p class="intro-kicker">★ AMERICA'S FAVORITE CHEMISTRY SHOWDOWN ★</p>
+                    <h1 class="marquee-title">
+                        <span class="title-sub">STEMCHEM</span>
+                        <span class="title-main">JEOPARDY!</span>
+                    </h1>
+                    <p class="tagline">“This… is… STEMCHEM!”</p>
+                </div>
+
+                <div class="tv-prompter-box" aria-label="Host message">
+                    <div class="prompter-top">
+                        <span class="prompter-indicator">● PROMPTER ACTIVE</span>
+                        <span class="prompter-label">HOST / ANNOUNCER</span>
+                    </div>
+                    <p class="dialogue" id="introDialogue">Welcome contestants! Choose your category, buzz in with lightning precision, and put your chemistry mastery to the test!</p>
+                </div>
+
+                <div class="podium-stations-grid" aria-label="Select game mode">
+                    <article class="podium-station solo-station">
+                        <div class="podium-top-rail">
+                            <span class="podium-number">PODIUM 1</span>
+                            <span class="podium-badge">PRACTICE RUN</span>
+                        </div>
+                        <div class="podium-screen">
+                            <div class="podium-icon" aria-hidden="true">🎯</div>
+                            <h2>Solo Contestant</h2>
+                            <p class="podium-summary">Tackle the full 25-clue board at your own pace against the studio timer.</p>
+                            <div class="podium-specs">
+                                <span>5 Categories</span>
+                                <span>$200 – $1000 Clues</span>
+                                <span>30s Clue Clock</span>
+                            </div>
+                        </div>
+                        <button class="start-button podium-btn" id="startGameButton" type="button">
+                            <span>Play solo</span> <span class="btn-arrow" aria-hidden="true">→</span>
+                        </button>
+                    </article>
+
+                    <article class="podium-station pvp-station">
+                        <div class="podium-top-rail">
+                            <span class="podium-number">PODIUM 2 & 3</span>
+                            <span class="podium-badge pvp-glow-badge">⚡ LIVE MULTIPLAYER</span>
+                        </div>
+                        <div class="podium-screen">
+                            <div class="podium-icon" aria-hidden="true">⚡</div>
+                            <h2>2-Player PvP</h2>
+                            <p class="podium-summary">Face a live challenger. Buzz in fast, steal missed clues, and earn verified match XP.</p>
+                            <div class="podium-specs">
+                                <span>Realtime Buzzer</span>
+                                <span>Steal Turns</span>
+                                <span>Leaderboard XP</span>
+                            </div>
+                        </div>
+                        <button class="secondary-button pvp-start podium-btn pvp-main-btn" id="pvpModeButton" type="button">
+                            <span>2-player PvP</span> <span class="btn-arrow" aria-hidden="true">⚡</span>
+                        </button>
+                    </article>
+                </div>
             </div>
         </section>
 
@@ -151,7 +214,6 @@
         <label class="setting-row volume-row"><span>Music volume</span><input id="musicVolume" type="range" min="0" max="1" step="0.05"></label>
         <label class="setting-row"><span><strong>Sound effects</strong><small>Selections and answer feedback</small></span><input id="effectsToggle" type="checkbox"></label>
         <label class="setting-row volume-row"><span>Effects volume</span><input id="effectsVolume" type="range" min="0" max="1" step="0.05"></label>
-        <p class="missing-audio" id="missingAudio">Narrator recordings were not found in this project, so narration is displayed as text.</p>
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>

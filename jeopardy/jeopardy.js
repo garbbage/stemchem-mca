@@ -8,6 +8,7 @@
     const preferenceKey = "stemchem-jeopardy-audio";
     const state = { score: 0, correct: 0, incorrect: 0, unanswered: 0, completed: 0, active: null };
     const completed = new Set();
+    const soloSelections = new Map();
     const pvp = { matchId: null, matchStatus: null, state: null, userId: null, playerSlot: null, profile: null };
     let timerId = null;
     let pvpPollTimer = null;
@@ -20,6 +21,9 @@
     const music = new Audio("../sfx/choice1.mov");
     music.loop = true;
     music.preload = "auto";
+    music.addEventListener("error", () => {
+        console.info("Jeopardy background music source unavailable in this browser.");
+    });
 
     const preferences = loadPreferences();
     music.volume = preferences.musicVolume;
@@ -138,7 +142,13 @@
     }
 
     function getQuestion(category, pointValue) {
-        return questionsFor(category).find((question) => question.points === pointValue) || null;
+        const key = `${category}:${pointValue}`;
+        if (soloSelections.has(key)) return soloSelections.get(key);
+        const choices = questionsFor(category).filter((question) => question.points === pointValue);
+        if (!choices.length) return null;
+        const question = choices[Math.floor(Math.random() * choices.length)];
+        soloSelections.set(key, question);
+        return question;
     }
 
     function startMusic() {
@@ -204,6 +214,8 @@
             });
         });
         elements.remaining.textContent = String(categories.length * points.length - completed.size);
+        const roundTitle = document.getElementById("roundTitle");
+        if (roundTitle) roundTitle.textContent = "The board";
     }
 
     function openQuestion(category, pointValue) {
@@ -494,6 +506,9 @@
         const done = Array.isArray(stateNow.answered_positions) ? stateNow.answered_positions : [];
         elements.boardElement.replaceChildren();
         const gameStarting = stateNow.start_at && Date.parse(stateNow.start_at) > Date.now();
+        const nextTurn = stateNow.next_turn || "one";
+        const isMyTurn = nextTurn === pvp.playerSlot;
+
         categories.forEach((category) => {
             const heading = document.createElement("div");
             heading.className = "category-cell";
@@ -512,21 +527,30 @@
                     tile.disabled = true;
                     tile.classList.add("completed");
                     tile.setAttribute("aria-label", `${category}, ${pointValue} points, unavailable`);
+                } else if (gameStarting) {
+                    tile.disabled = true;
+                    tile.classList.add("starting");
+                    tile.textContent = `$${pointValue.toLocaleString("en-US")}`;
+                } else if (!isMyTurn) {
+                    tile.disabled = true;
+                    tile.classList.add("waiting-turn");
+                    tile.setAttribute("aria-label", `${category}, ${pointValue} points, waiting for opponent`);
+                    tile.textContent = `$${pointValue.toLocaleString("en-US")}`;
                 } else {
                     tile.textContent = `$${pointValue.toLocaleString("en-US")}`;
-                    if (gameStarting) {
-                        tile.disabled = true;
-                        tile.classList.add("starting");
-                    }
                 }
                 elements.boardElement.appendChild(tile);
             });
         });
         elements.remaining.textContent = String(25 - done.length);
+        const roundTitle = document.getElementById("roundTitle");
         if (stateNow.start_at && Date.parse(stateNow.start_at) > Date.now()) {
-            document.getElementById("roundTitle").textContent = `Game starts in ${Math.ceil((Date.parse(stateNow.start_at) - Date.now()) / 1000)}`;
+            roundTitle.textContent = `Broadcast starts in ${Math.ceil((Date.parse(stateNow.start_at) - Date.now()) / 1000)}s`;
+        } else if (isMyTurn) {
+            roundTitle.innerHTML = `<span class="pvp-turn-indicator turn-active">⚡ Your turn</span> Choose a clue`;
         } else {
-            document.getElementById("roundTitle").textContent = "Choose a clue";
+            const oppName = opponent.name || "Opponent";
+            roundTitle.innerHTML = `<span class="pvp-turn-indicator turn-waiting">⏳ ${oppName}'s turn</span> Waiting for clue selection…`;
         }
         elements.buzzStatus.hidden = true;
         elements.form.hidden = false;
@@ -798,6 +822,7 @@
     document.getElementById("playAgainButton").addEventListener("click", () => {
         stopTimer();
         completed.clear();
+        soloSelections.clear();
         state.score = 0;
         state.correct = 0;
         state.incorrect = 0;
