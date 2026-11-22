@@ -31,7 +31,7 @@ values
     ('reactions-600-1', 'Chemical Reactions', 600, 'This type of chemical reaction occurs when a substance reacts with oxygen, releasing energy.', array['combustion','combustion reaction','combustion reactions'], 'combustion'),
     ('reactions-800-1', 'Chemical Reactions', 800, 'In this type of reaction, one element replaces another element in a compound.', array['single displacement','single displacement reaction','single displacement reactions','single replacement','single replacement reaction','single replacement reactions'], 'single displacement'),
     ('reactions-1000-1', 'Chemical Reactions', 1000, 'This type of reaction occurs when an acid reacts with a base, producing salt and water.', array['acid-base neutralization','acid-base neutralization reaction','acid-base neutralization reactions','acid base neutralization','acid base neutralization reaction','acid base neutralization reactions','acidbase neutralization','acidbase neutralization reaction','acidbase neutralization reactions'], 'acid-base neutralization'),
-    ('acids-200-1', 'Acids and Bases', 200, 'This branch of science focuses on the composition, structure, properties, and changes of matter.', array['acid','acids'], 'acid'),
+    ('acids-200-1', 'Acids and Bases', 200, 'This substance donates hydrogen ions when dissolved in water.', array['acid','acids'], 'acid'),
     ('acids-400-1', 'Acids and Bases', 400, 'This ionic compound is one of the products formed when an acid reacts with a base during neutralization.', array['salt'], 'salt'),
     ('acids-600-1', 'Acids and Bases', 600, 'This type of reaction occurs when an acid and a base react to produce salt and water.', array['neutralization'], 'neutralization'),
     ('acids-800-1', 'Acids and Bases', 800, 'This type of acid completely ionizes in water, producing a high concentration of hydrogen ions.', array['strong acid','strong acids','strong'], 'strong acid'),
@@ -509,6 +509,7 @@ begin
                             ),
                             'answered_positions', '[]'::jsonb,
                             'active', null,
+                            'next_turn', 'one',
                             'unanswered', 0
                         )
                     ) returning * into v_match;
@@ -521,8 +522,11 @@ begin
                         ('Chemical Reactions', 4), ('Acids and Bases', 5)
                     ) as cat(category, sort_order)
                     cross join (values (200), (400), (600), (800), (1000)) as p(points)
-                    join private.jeopardy_pvp_question_bank q
-                      on q.category = cat.category and q.points = p.points;
+                    join lateral (
+                        select b.* from private.jeopardy_pvp_question_bank b
+                        where b.category = cat.category and b.points = p.points
+                        order by random() limit 1
+                    ) q on true;
                     if (select count(*) from private.jeopardy_pvp_match_clues where match_id = v_match.id) <> 25 then
                         raise exception 'The PvP question board is incomplete';
                     end if;
@@ -593,7 +597,9 @@ begin
                 v_state := jsonb_set(v_state, '{unanswered}',
                     to_jsonb(coalesce((v_state ->> 'unanswered')::integer,0)+1), true);
                 v_state := jsonb_set(v_state, '{answered_positions}',
-                    coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position), true);
+                    case when coalesce(v_state -> 'answered_positions','[]'::jsonb) @> to_jsonb(v_position)
+                         then coalesce(v_state -> 'answered_positions','[]'::jsonb)
+                         else coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position) end, true);
             else
                 v_position := (v_active ->> 'position')::integer;
                 select q.* into v_question
@@ -606,7 +612,9 @@ begin
                 v_state := jsonb_set(v_state, '{unanswered}',
                     to_jsonb(coalesce((v_state ->> 'unanswered')::integer,0)+1), true);
                 v_state := jsonb_set(v_state, '{answered_positions}',
-                    coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position), true);
+                    case when coalesce(v_state -> 'answered_positions','[]'::jsonb) @> to_jsonb(v_position)
+                         then coalesce(v_state -> 'answered_positions','[]'::jsonb)
+                         else coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position) end, true);
             end if;
             update public.jeopardy_pvp_matches set public_state = v_state, updated_at = now()
             where id = v_match.id returning * into v_match;
@@ -669,6 +677,9 @@ begin
     if p_action = 'select' then
         if v_match.status <> 'in_progress' or v_match.started_at > now() then raise exception 'The game has not started yet'; end if;
         if v_state -> 'active' is not null and v_state -> 'active' <> 'null'::jsonb then raise exception 'Finish the current clue first'; end if;
+        if v_state ->> 'next_turn' is not null and v_state ->> 'next_turn' <> v_slot then
+            raise exception 'It is not your turn to choose a clue';
+        end if;
         v_position := (p_payload ->> 'position')::integer;
         select q.* into v_question
         from private.jeopardy_pvp_match_clues mc
@@ -679,7 +690,8 @@ begin
         v_active := jsonb_build_object(
             'position', v_position, 'category', v_question.category, 'points', v_question.points,
             'clue', v_question.clue, 'deadline', (now() + interval '30 seconds')::text,
-            'attempts', 0, 'buzzed_by', null, 'first_buzzer', null, 'revealed', false
+            'attempts', 0, 'buzzed_by', null, 'first_buzzer', null, 'revealed', false,
+            'selected_by', v_slot
         );
         v_state := jsonb_set(v_state, '{active}', v_active, true);
         v_state := jsonb_set(v_state, '{phase}', '"buzz"'::jsonb, true);
@@ -735,7 +747,9 @@ begin
             v_state := jsonb_set(v_state, '{active,was_correct}', 'true'::jsonb, true);
             v_state := jsonb_set(v_state, '{phase}', '"result"'::jsonb, true);
             v_state := jsonb_set(v_state, '{answered_positions}',
-                coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position), true);
+                case when coalesce(v_state -> 'answered_positions','[]'::jsonb) @> to_jsonb(v_position)
+                     then coalesce(v_state -> 'answered_positions','[]'::jsonb)
+                     else coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position) end, true);
         else
             v_state := jsonb_set(v_state, array['players',v_slot,'incorrect'],
                 to_jsonb(coalesce((v_state #>> array['players',v_slot,'incorrect'])::integer,0)+1), true);
@@ -755,7 +769,9 @@ begin
                 v_state := jsonb_set(v_state, '{active,was_correct}', 'false'::jsonb, true);
                 v_state := jsonb_set(v_state, '{phase}', '"result"'::jsonb, true);
                 v_state := jsonb_set(v_state, '{answered_positions}',
-                    coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position), true);
+                    case when coalesce(v_state -> 'answered_positions','[]'::jsonb) @> to_jsonb(v_position)
+                         then coalesce(v_state -> 'answered_positions','[]'::jsonb)
+                         else coalesce(v_state -> 'answered_positions','[]'::jsonb) || to_jsonb(v_position) end, true);
             end if;
         end if;
         update public.jeopardy_pvp_matches set public_state = v_state, updated_at = now()
@@ -763,8 +779,20 @@ begin
     elsif p_action = 'next' then
         if v_match.status <> 'in_progress' or v_state ->> 'phase' <> 'result' then raise exception 'Resolve the current clue first'; end if;
         v_state := jsonb_set(v_state, '{active}', 'null'::jsonb, true);
+        v_state := jsonb_set(v_state, '{next_turn}', to_jsonb(
+            case
+                when v_state #>> '{active,was_correct}' = 'true' and v_state #>> '{active,buzzed_by}' in ('one', 'two')
+                    then v_state #>> '{active,buzzed_by}'
+                when v_state #>> '{active,selected_by}' = 'one'
+                    then 'two'
+                when v_state #>> '{active,selected_by}' = 'two'
+                    then 'one'
+                else case when v_slot = 'one' then 'two' else 'one' end
+            end
+        ), true);
         v_state := v_state - 'phase' - 'feedback';
-        select jsonb_array_length(coalesce(v_state -> 'answered_positions','[]'::jsonb)) into v_done;
+        select count(*) into v_done
+        from (select distinct value from jsonb_array_elements_text(coalesce(v_state -> 'answered_positions','[]'::jsonb))) completed;
         if v_done >= 25 then
             v_awards := private.jeopardy_pvp_award_match(v_match.id, v_state);
             v_state := jsonb_set(v_state, '{status}', '"finished"'::jsonb, true);
