@@ -1146,7 +1146,13 @@ function renderAdminRoster(students) {
         unlockLessons.disabled = student.progress.all_lessons_unlocked;
         unlockLessons.dataset.action = "unlock_all_lessons";
         unlockLessons.dataset.userId = student.id;
-        actions.append(rename, toggle, reset, viewProgress, unlockLessons);
+        const adjustXp = document.createElement("button");
+        adjustXp.className = "secondary-button roster-action";
+        adjustXp.type = "button";
+        adjustXp.textContent = "Adjust XP";
+        adjustXp.dataset.action = "adjust_xp";
+        adjustXp.dataset.userId = student.id;
+        actions.append(rename, toggle, reset, adjustXp, viewProgress, unlockLessons);
         row.append(identity, status, xp, progress, actions);
         body.append(row);
     });
@@ -1212,6 +1218,29 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
                 userId: button.dataset.userId
             });
             successMessage = "All lessons unlocked. Completed lessons and the XP multiplier remain unchanged.";
+        } else if (button.dataset.action === "adjust_xp") {
+            const student = adminStudents.find((item) => item.id === button.dataset.userId);
+            if (!student) {
+                throw new Error("The selected student account is no longer available.");
+            }
+            const currentXp = Number(student.progress?.total_xp) || 0;
+            const input = window.prompt(
+                `Adjust XP for ${student.display_name} (Current: ${currentXp} XP).\nEnter amount to reward (+) or deduct (-), e.g. +50 or -25:`
+            );
+            if (input === null) {
+                return;
+            }
+            const amount = parseInt(input.trim().replace(/^\+/, ""), 10);
+            if (isNaN(amount) || amount === 0) {
+                throw new Error("Please enter a valid non-zero number to adjust XP.");
+            }
+            const result = await window.chemSecureApp.adminRequest({
+                action: "adjust_xp",
+                userId: button.dataset.userId,
+                amount
+            });
+            const nextTotal = result?.total_xp !== undefined ? result.total_xp : Math.max(0, currentXp + amount);
+            successMessage = `${amount > 0 ? "Rewarded" : "Deducted"} ${Math.abs(amount)} XP for ${student.display_name}. New total: ${nextTotal} XP.`;
         } else {
             if (button.dataset.action === "reset_password") {
                 const temporaryPassword = window.prompt("Enter a new temporary password (6–128 characters).");

@@ -456,6 +456,7 @@
         updateDisplayName,
         refreshProgress,
         adminRequest,
+        adjustStudentXp: (userId, amount) => adminRequest({ action: "adjust_xp", userId, amount }),
         profileAvatarUrls,
         setProfileAvatar,
         uploadProfileAvatar,
