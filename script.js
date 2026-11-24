@@ -346,6 +346,10 @@ function updateXpDisplay() {
         : `${20 - score} XP to go`;
 }
 
+function getScreenTimeStorageKey(userId) {
+    return `stemchem-screen-time-${userId}`;
+}
+
 function formatScreenTime(totalSeconds) {
     const seconds = Math.max(0, Math.floor(totalSeconds || 0));
     const hours = Math.floor(seconds / 3600);
@@ -441,7 +445,14 @@ class ScreenTimeTracker {
             this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
             this.sessionStart = null;
         }
-        this.tickLocal();
+        // Persist combined total to localStorage so screen time survives page refresh
+        const total = screenTimeTotal + this.pendingSeconds;
+        try {
+            window.localStorage.setItem(getScreenTimeStorageKey(this.userId), String(total));
+        } catch (error) {
+            console.warn("Could not save screen time to localStorage.", error);
+        }
+        updateScreenTimeDisplay();
     }
 
     tickLocal() {
@@ -459,10 +470,15 @@ class ScreenTimeTracker {
                 await window.chemSecureApp.saveScreenTime(toSave);
                 screenTimeTotal += toSave;
                 this.pendingSeconds = 0;
+                try {
+                    window.localStorage.setItem(getScreenTimeStorageKey(this.userId), String(screenTimeTotal));
+                } catch (error) {
+                    console.warn("Could not save screen time to localStorage.", error);
+                }
                 updateScreenTimeDisplay();
             } catch (error) {
                 console.warn("Could not save screen time to server.", error);
-                // Keep pendingSeconds so it can be retried on next save
+                // localStorage already updated by pause(); pendingSeconds kept for retry
             }
         }
     }
@@ -1504,11 +1520,14 @@ async function handleAuthenticated(profile, progress) {
     updateProgress(progress);
     try {
         const screenTime = await window.chemSecureApp.getScreenTime();
-        if (screenTime) {
-            screenTimeTotal = screenTime.total_seconds || 0;
-            updateScreenTimeDisplay();
-        }
+        const serverSeconds = screenTime?.total_seconds || 0;
+        const localSeconds = parseInt(window.localStorage.getItem(getScreenTimeStorageKey(profile.id)) || "0", 10);
+        screenTimeTotal = Math.max(serverSeconds, localSeconds);
+        updateScreenTimeDisplay();
     } catch (error) {
+        const localSeconds = parseInt(window.localStorage.getItem(getScreenTimeStorageKey(profile.id)) || "0", 10);
+        screenTimeTotal = localSeconds;
+        updateScreenTimeDisplay();
         console.warn("Could not load screen time.", error);
     }
     if (screenTimeTracker) {
