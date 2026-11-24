@@ -449,13 +449,7 @@ class ScreenTimeTracker {
             this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
             this.sessionStart = Date.now();
         }
-        const toSave = this.pendingSeconds;
-        if (toSave > 0) {
-            screenTimeTotal += toSave;
-            this.pendingSeconds = 0;
-            updateScreenTimeDisplay();
-        }
-        return toSave;
+        return this.pendingSeconds;
     }
 
     async saveToServer() {
@@ -463,26 +457,21 @@ class ScreenTimeTracker {
         if (toSave > 0 && this.userId) {
             try {
                 await window.chemSecureApp.saveScreenTime(toSave);
+                screenTimeTotal += toSave;
+                this.pendingSeconds = 0;
+                updateScreenTimeDisplay();
             } catch (error) {
                 console.warn("Could not save screen time to server.", error);
+                // Keep pendingSeconds so it can be retried on next save
             }
         }
     }
 
     onBeforeUnload() {
         this.pause();
-        if (this.pendingSeconds > 0 && this.userId) {
-            try {
-                const payload = JSON.stringify({ action: "save_screen_time", seconds: this.pendingSeconds });
-                navigator.sendBeacon(
-                    "https://iwmfhfmvszcecwqrppaw.supabase.co/functions/v1/learning",
-                    payload
-                );
-                this.pendingSeconds = 0;
-            } catch (error) {
-                console.warn("Could not beacon screen time.", error);
-            }
-        }
+        // Note: navigator.sendBeacon cannot include auth headers,
+        // so we rely on the periodic 60-second saves to persist data.
+        // Unsaved seconds on abrupt close may be lost.
     }
 
     getCurrentTotal() {
