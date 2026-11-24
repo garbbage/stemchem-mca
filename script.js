@@ -361,28 +361,28 @@ class ScreenTimeTracker {
         this.userId = userId;
         this.sessionStart = null;
         this.pendingSeconds = 0;
-        this.isActive = false;
+        this.isCounting = false;
         this.inactivityTimeout = 5 * 60 * 1000;
         this.lastActivity = Date.now();
         this.saveInterval = null;
         this.inactivityCheckInterval = null;
         this.boundVisibilityChange = this.onVisibilityChange.bind(this);
         this.boundActivity = this.onActivity.bind(this);
-        this.beforeUnload = this.onBeforeUnload.bind(this);
+        this.boundBeforeUnload = this.onBeforeUnload.bind(this);
         this.start();
     }
 
     start() {
         document.addEventListener("visibilitychange", this.boundVisibilityChange, false);
         window.addEventListener("focus", this.boundActivity, false);
-        window.addEventListener("blur", this.onBlur.bind(this), false);
+        window.addEventListener("blur", () => { this.lastActivity = Date.now(); }, false);
         const activityEvents = ["mousemove", "keydown", "scroll", "click", "touchstart"];
         activityEvents.forEach((event) => {
             document.addEventListener(event, this.boundActivity, true);
         });
-        this.inactivityCheckInterval = setInterval(() => this.checkInactivity(), 60000);
-        this.saveInterval = setInterval(() => this.savePending(), 60000);
-        window.addEventListener("beforeunload", this.beforeUnload, false);
+        this.inactivityCheckInterval = setInterval(() => this.checkInactivity(), 30000);
+        this.saveInterval = setInterval(() => this.saveToServer(), 60000);
+        window.addEventListener("beforeunload", this.boundBeforeUnload, false);
         this.resume();
     }
 
@@ -390,7 +390,7 @@ class ScreenTimeTracker {
         this.pause();
         document.removeEventListener("visibilitychange", this.boundVisibilityChange, false);
         window.removeEventListener("focus", this.boundActivity, false);
-        window.removeEventListener("blur", this.onBlur.bind(this), false);
+        window.removeEventListener("blur", () => { this.lastActivity = Date.now(); }, false);
         const activityEvents = ["mousemove", "keydown", "scroll", "click", "touchstart"];
         activityEvents.forEach((event) => {
             document.removeEventListener(event, this.boundActivity, true);
@@ -403,7 +403,7 @@ class ScreenTimeTracker {
             clearInterval(this.saveInterval);
             this.saveInterval = null;
         }
-        window.removeEventListener("beforeunload", this.beforeUnload, false);
+        window.removeEventListener("beforeunload", this.boundBeforeUnload, false);
         screenTimeTracker = null;
     }
 
@@ -415,68 +415,79 @@ class ScreenTimeTracker {
         }
     }
 
-    onBlur() {
-        this.lastActivity = Date.now();
-    }
-
     onActivity() {
         this.lastActivity = Date.now();
-        if (!this.isActive) {
+        if (!this.isCounting) {
             this.resume();
         }
     }
 
     checkInactivity() {
-        if (this.isActive && Date.now() - this.lastActivity > this.inactivityTimeout) {
+        if (this.isCounting && Date.now() - this.lastActivity > this.inactivityTimeout) {
             this.pause();
+        }
+    }
+
+    resume() {
+        if (this.isCounting) return;
+        this.isCounting = true;
+        this.sessionStart = Date.now();
+    }
+
+    pause() {
+        if (!this.isCounting) return;
+        this.isCounting = false;
+        if (this.sessionStart) {
+            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
+            this.sessionStart = null;
+        }
+        this.tickLocal();
+    }
+
+    tickLocal() {
+        if (this.sessionStart) {
+            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
+            this.sessionStart = Date.now();
+        }
+        const toSave = this.pendingSeconds;
+        if (toSave > 0) {
+            screenTimeTotal += toSave;
+            this.pendingSeconds = 0;
+            updateScreenTimeDisplay();
+        }
+        return toSave;
+    }
+
+    async saveToServer() {
+        const toSave = this.tickLocal();
+        if (toSave > 0 && this.userId) {
+            try {
+                await window.chemSecureApp.saveScreenTime(toSave);
+            } catch (error) {
+                console.warn("Could not save screen time to server.", error);
+            }
         }
     }
 
     onBeforeUnload() {
         this.pause();
-        void this.savePending();
-    }
-
-    resume() {
-        if (this.isActive) return;
-        this.isActive = true;
-        this.sessionStart = Date.now();
-    }
-
-    pause() {
-        if (!this.isActive) return;
-        this.isActive = false;
-        if (this.sessionStart) {
-            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
-            this.sessionStart = null;
-        }
-        this.savePending();
-    }
-
-    async savePending() {
-        if (this.sessionStart) {
-            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
-            this.sessionStart = Date.now();
-        }
         if (this.pendingSeconds > 0 && this.userId) {
             try {
-                const result = await window.chemSecureApp.saveScreenTime(this.pendingSeconds);
-                if (result && result.screen_time_seconds !== undefined) {
-                    screenTimeTotal = result.screen_time_seconds;
-                } else {
-                    screenTimeTotal += this.pendingSeconds;
-                }
+                const payload = JSON.stringify({ action: "save_screen_time", seconds: this.pendingSeconds });
+                navigator.sendBeacon(
+                    "https://iwmfhfmvszcecwqrppaw.supabase.co/functions/v1/learning",
+                    payload
+                );
                 this.pendingSeconds = 0;
-                updateScreenTimeDisplay();
             } catch (error) {
-                console.warn("Could not save screen time.", error);
+                console.warn("Could not beacon screen time.", error);
             }
         }
     }
 
     getCurrentTotal() {
         let total = screenTimeTotal + this.pendingSeconds;
-        if (this.isActive && this.sessionStart) {
+        if (this.isCounting && this.sessionStart) {
             total += Math.floor((Date.now() - this.sessionStart) / 1000);
         }
         return total;
