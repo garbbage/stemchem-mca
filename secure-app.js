@@ -353,8 +353,41 @@
         return data;
     }
 
+    async function getScreenTime() {
+        if (!activeUserId) {
+            return null;
+        }
+        const { data, error } = await ensureConfigured()
+            .from("student_screen_time")
+            .select("total_seconds, updated_at")
+            .eq("user_id", activeUserId)
+            .single();
+        if (error || !data) {
+            return { total_seconds: 0, updated_at: null };
+        }
+        return { total_seconds: data.total_seconds || 0, updated_at: data.updated_at };
+    }
+
+    async function saveScreenTime(seconds) {
+        if (!activeUserId) {
+            throw new Error("Sign in again before saving screen time.");
+        }
+        if (typeof seconds !== "number" || seconds < 0) {
+            throw new Error("Invalid screen time duration.");
+        }
+        return callFunction("learning", { action: "save_screen_time", seconds });
+    }
+
     async function adminRequest(body) {
         return callFunction("admin", body);
+    }
+
+    async function adminGetScreenTime() {
+        return adminRequest({ action: "get_screen_time" });
+    }
+
+    async function adminResetScreenTime(userId) {
+        return adminRequest({ action: "reset_screen_time", userId });
     }
 
     async function jeopardyPvpAction(action, payload = {}) {
@@ -455,7 +488,11 @@
         updatePassword,
         updateDisplayName,
         refreshProgress,
+        getScreenTime,
+        saveScreenTime,
         adminRequest,
+        adminGetScreenTime,
+        adminResetScreenTime,
         adjustStudentXp: (userId, amount) => adminRequest({ action: "adjust_xp", userId, amount }),
         profileAvatarUrls,
         setProfileAvatar,

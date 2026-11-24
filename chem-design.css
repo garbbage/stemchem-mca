@@ -82,7 +82,7 @@ h1 span {
     border: 1px solid var(--line);
     border-radius: 50%;
     background: var(--surface-soft);
-    color: var(--teal);
+    object-fit: cover;
 }
 
 .brand-accent {
@@ -691,7 +691,7 @@ input:focus-visible {
 .auth-brand-panel .brand-mark {
     border-color: rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.1);
-    color: #d4e6d5;
+    object-fit: cover;
 }
 
 .auth-hero-copy h1 span {

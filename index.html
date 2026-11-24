@@ -16,7 +16,7 @@
     <main class="auth-screen" id="authScreen">
         <section class="auth-brand-panel" aria-label="About StemChem">
             <a class="brand auth-brand" href="#authScreen" aria-label="StemChem home">
-                <span class="brand-mark" aria-hidden="true"><img src="icons/STEMCHEM LOGO.png"></span>
+                <img class="brand-mark" src="icons/STEMCHEM LOGO.png" alt="" aria-hidden="true">
                 <span>Stem<span class="brand-accent">Chem</span></span>
             </a>
             <div class="auth-hero-copy">
@@ -37,9 +37,9 @@
 
         <section class="auth-form-panel" aria-labelledby="authTitle">
             <div class="auth-form-wrap">
-                <div class="auth-mobile-brand"><span class="brand-mark" aria-hidden="true"><img src="icons/STEMCHEM LOGO.png"></span> StemChem</div>
+                <div class="auth-mobile-brand"><img class="brand-mark" src="icons/STEMCHEM LOGO.png" alt="" aria-hidden="true"> StemChem</div>
                 <h2 id="authTitle">Sign in to your lab</h2>
-                <p class="auth-description" id="authDescription">Use the student ID and password provided by your researchers.</p>
+                <p class="auth-description" id="authDescription">Use the student ID and temporary password provided by your researcher.</p>
 
                 <form class="auth-form" id="authForm">
                     <label for="authUsername">Student ID / username
@@ -60,7 +60,7 @@
     <div class="app-shell" id="appShell" hidden>
         <aside class="sidebar" aria-label="Main navigation">
             <a class="brand" href="#home" aria-label="StemChem home">
-                <span class="brand-mark" aria-hidden="true"><img src="icons/STEMCHEM LOGO.png"></span>
+                <img class="brand-mark" src="icons/STEMCHEM LOGO.png" alt="" aria-hidden="true">
                 <span>Stem<span class="brand-accent">Chem</span></span>
             </a>
 
@@ -111,7 +111,7 @@
 
         <main class="main-content" id="home">
             <header class="topbar">
-                <div class="mobile-brand"><span class="brand-mark" aria-hidden="true"><img src="icons/STEMCHEM LOGO.png"></span> StemChem</div>
+                <div class="mobile-brand"><img class="brand-mark" src="icons/STEMCHEM LOGO.png" alt="" aria-hidden="true"> StemChem</div>
                 <div class="topbar-spacer"></div>
                 <div class="top-stat streak-stat" aria-label="Current day streak">
                     <img src="icons/Streak Activated.png" alt="">
@@ -226,7 +226,7 @@
                             <span class="practice-icon"><img src="icons/Games.png" alt=""></span><span><strong>Chemistry crossword</strong><small>Use clues from your class word bank</small></span><span class="card-arrow">→</span>
                         </a>
                         <a class="practice-card" href="jeopardy/jeopardy.html">
-                            <span class="practice-icon" aria-hidden="true"><img src=icons/Jeopardy.png></span><span><strong>STEMCHEM Jeopardy</strong><small>Race across chemistry categories for points</small></span><span class="card-arrow">→</span>
+                            <span class="practice-icon"><img src="icons/Jeopardy.png"></span><span><strong>STEMCHEM Jeopardy</strong><small>Race across chemistry categories for points</small></span><span class="card-arrow">→</span>
                         </a>
                         <button class="practice-card puzzle-card" id="wordSprintButton" type="button">
                             <span class="practice-icon" aria-hidden="true">⚡</span><span><strong>Word bank sprint</strong><small>Race through 5 chemistry clues</small></span><span class="card-arrow">→</span>
@@ -270,6 +270,7 @@
                         <article class="profile-stat-card"><span>🔥</span><strong id="profileStreak">0 days</strong><small>Current streak</small></article>
                         <article class="profile-stat-card"><span>📚</span><strong id="profileUnits">0 of 12</strong><small>Lessons completed</small></article>
                         <article class="profile-stat-card"><span>✨</span><strong id="profileMultiplier">1.0×</strong><small>Game XP multiplier · lessons unlock up to 1.5×</small></article>
+                        <article class="profile-stat-card"><span>⏱️</span><strong id="profileScreenTime">0 min</strong><small>Screen time · visible only to you</small></article>
                     </div>
                     <form class="password-change-form" id="displayNameForm">
                         <h2>Change display name</h2>
@@ -346,7 +347,7 @@
                     <p class="admin-feedback" id="adminFeedback" aria-live="polite"></p>
                     <div class="admin-roster-wrap">
                         <table class="admin-roster">
-                            <thead><tr><th>Student</th><th>Status</th><th>XP</th><th>Progress</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Student</th><th>Status</th><th>XP</th><th>Screen time</th><th>Progress</th><th>Actions</th></tr></thead>
                             <tbody id="adminRosterBody"></tbody>
                         </table>
                     </div>

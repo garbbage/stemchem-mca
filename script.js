@@ -77,6 +77,8 @@ let completedTopics = [];
 let activityDates = [];
 let learningProgress = {};
 let adminStudents = [];
+let screenTimeTotal = 0;
+let screenTimeTracker = null;
 let flashcardState = { words: [], index: 0, topic: "" };
 let quizState = null;
 
@@ -230,6 +232,10 @@ function showSignedOut() {
     completedTopics = [];
     activityDates = [];
     learningProgress = {};
+    screenTimeTotal = 0;
+    if (screenTimeTracker) {
+        screenTimeTracker.stop();
+    }
     authScreen.hidden = false;
     appShell.hidden = true;
     document.getElementById("adminNavLink").hidden = true;
@@ -338,6 +344,158 @@ function updateXpDisplay() {
     document.getElementById("goalRemaining").textContent = score >= 20
         ? "Goal complete!"
         : `${20 - score} XP to go`;
+}
+
+function formatScreenTime(totalSeconds) {
+    const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+        return `${hours} hour${hours === 1 ? "" : "s"} ${minutes} min`;
+    }
+    return `${minutes} min`;
+}
+
+class ScreenTimeTracker {
+    constructor(userId) {
+        this.userId = userId;
+        this.sessionStart = null;
+        this.pendingSeconds = 0;
+        this.isActive = false;
+        this.inactivityTimeout = 5 * 60 * 1000;
+        this.lastActivity = Date.now();
+        this.saveInterval = null;
+        this.inactivityCheckInterval = null;
+        this.boundVisibilityChange = this.onVisibilityChange.bind(this);
+        this.boundActivity = this.onActivity.bind(this);
+        this.beforeUnload = this.onBeforeUnload.bind(this);
+        this.start();
+    }
+
+    start() {
+        document.addEventListener("visibilitychange", this.boundVisibilityChange, false);
+        window.addEventListener("focus", this.boundActivity, false);
+        window.addEventListener("blur", this.onBlur.bind(this), false);
+        const activityEvents = ["mousemove", "keydown", "scroll", "click", "touchstart"];
+        activityEvents.forEach((event) => {
+            document.addEventListener(event, this.boundActivity, true);
+        });
+        this.inactivityCheckInterval = setInterval(() => this.checkInactivity(), 60000);
+        this.saveInterval = setInterval(() => this.savePending(), 60000);
+        window.addEventListener("beforeunload", this.beforeUnload, false);
+        this.resume();
+    }
+
+    stop() {
+        this.pause();
+        document.removeEventListener("visibilitychange", this.boundVisibilityChange, false);
+        window.removeEventListener("focus", this.boundActivity, false);
+        window.removeEventListener("blur", this.onBlur.bind(this), false);
+        const activityEvents = ["mousemove", "keydown", "scroll", "click", "touchstart"];
+        activityEvents.forEach((event) => {
+            document.removeEventListener(event, this.boundActivity, true);
+        });
+        if (this.inactivityCheckInterval) {
+            clearInterval(this.inactivityCheckInterval);
+            this.inactivityCheckInterval = null;
+        }
+        if (this.saveInterval) {
+            clearInterval(this.saveInterval);
+            this.saveInterval = null;
+        }
+        window.removeEventListener("beforeunload", this.beforeUnload, false);
+        screenTimeTracker = null;
+    }
+
+    onVisibilityChange() {
+        if (document.hidden) {
+            this.pause();
+        } else {
+            this.resume();
+        }
+    }
+
+    onBlur() {
+        this.lastActivity = Date.now();
+    }
+
+    onActivity() {
+        this.lastActivity = Date.now();
+        if (!this.isActive) {
+            this.resume();
+        }
+    }
+
+    checkInactivity() {
+        if (this.isActive && Date.now() - this.lastActivity > this.inactivityTimeout) {
+            this.pause();
+        }
+    }
+
+    onBeforeUnload() {
+        this.pause();
+        void this.savePending();
+    }
+
+    resume() {
+        if (this.isActive) return;
+        this.isActive = true;
+        this.sessionStart = Date.now();
+    }
+
+    pause() {
+        if (!this.isActive) return;
+        this.isActive = false;
+        if (this.sessionStart) {
+            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
+            this.sessionStart = null;
+        }
+        this.savePending();
+    }
+
+    async savePending() {
+        if (this.sessionStart) {
+            this.pendingSeconds += Math.floor((Date.now() - this.sessionStart) / 1000);
+            this.sessionStart = Date.now();
+        }
+        if (this.pendingSeconds > 0 && this.userId) {
+            try {
+                const result = await window.chemSecureApp.saveScreenTime(this.pendingSeconds);
+                if (result && result.screen_time_seconds !== undefined) {
+                    screenTimeTotal = result.screen_time_seconds;
+                } else {
+                    screenTimeTotal += this.pendingSeconds;
+                }
+                this.pendingSeconds = 0;
+                updateScreenTimeDisplay();
+            } catch (error) {
+                console.warn("Could not save screen time.", error);
+            }
+        }
+    }
+
+    getCurrentTotal() {
+        let total = screenTimeTotal + this.pendingSeconds;
+        if (this.isActive && this.sessionStart) {
+            total += Math.floor((Date.now() - this.sessionStart) / 1000);
+        }
+        return total;
+    }
+}
+
+function updateScreenTimeDisplay() {
+    const displayText = formatScreenTime(screenTimeTracker ? screenTimeTracker.getCurrentTotal() : screenTimeTotal);
+    const profileScreenTime = document.getElementById("profileScreenTime");
+    if (profileScreenTime) {
+        profileScreenTime.textContent = displayText;
+    }
+    const adminScreenTimeCells = document.querySelectorAll(".admin-screen-time");
+    adminScreenTimeCells.forEach((cell) => {
+        const userId = cell.dataset.userId;
+        if (userId && currentProfile && currentProfile.id === userId) {
+            cell.textContent = displayText;
+        }
+    });
 }
 
 function getCurrentStreak() {
@@ -958,6 +1116,9 @@ function showAppPage(pageName) {
     if (selectedPage === "admin" && currentProfile?.role === "admin") {
         loadAdminRoster();
     }
+    if (selectedPage === "profile") {
+        updateScreenTimeDisplay();
+    }
     if (selectedPage === "lesson" && lessonSlug) {
         window.ChemLearning.openTopic(lessonSlug);
     }
@@ -1107,6 +1268,10 @@ function renderAdminRoster(students) {
         status.textContent = student.is_active ? "Active" : "Inactive";
         const xp = document.createElement("td");
         xp.textContent = `${student.progress.total_xp} XP`;
+        const screenTime = document.createElement("td");
+        screenTime.className = "admin-screen-time";
+        screenTime.dataset.userId = student.id;
+        screenTime.textContent = formatScreenTime(student.total_seconds);
         const progress = document.createElement("td");
         const units = student.progress.completed_topics.length;
         const activeDays = student.progress.activity_dates.length;
@@ -1152,8 +1317,14 @@ function renderAdminRoster(students) {
         adjustXp.textContent = "Adjust XP";
         adjustXp.dataset.action = "adjust_xp";
         adjustXp.dataset.userId = student.id;
-        actions.append(rename, toggle, reset, adjustXp, viewProgress, unlockLessons);
-        row.append(identity, status, xp, progress, actions);
+        const resetScreenTime = document.createElement("button");
+        resetScreenTime.className = "secondary-button roster-action";
+        resetScreenTime.type = "button";
+        resetScreenTime.textContent = "Reset screen time";
+        resetScreenTime.dataset.action = "reset_screen_time";
+        resetScreenTime.dataset.userId = student.id;
+        actions.append(rename, toggle, reset, adjustXp, viewProgress, unlockLessons, resetScreenTime);
+        row.append(identity, status, xp, screenTime, progress, actions);
         body.append(row);
     });
 }
@@ -1241,6 +1412,16 @@ document.getElementById("adminRosterBody").addEventListener("click", async (even
             });
             const nextTotal = result?.total_xp !== undefined ? result.total_xp : Math.max(0, currentXp + amount);
             successMessage = `${amount > 0 ? "Rewarded" : "Deducted"} ${Math.abs(amount)} XP for ${student.display_name}. New total: ${nextTotal} XP.`;
+        } else if (button.dataset.action === "reset_screen_time") {
+            const student = adminStudents.find((item) => item.id === button.dataset.userId);
+            if (!student) {
+                throw new Error("The selected student account is no longer available.");
+            }
+            if (!window.confirm(`Reset screen time for ${student.display_name}?`)) {
+                return;
+            }
+            await window.chemSecureApp.adminResetScreenTime(button.dataset.userId);
+            successMessage = `Screen time reset for ${student.display_name}.`;
         } else {
             if (button.dataset.action === "reset_password") {
                 const temporaryPassword = window.prompt("Enter a new temporary password (6–128 characters).");
@@ -1310,7 +1491,7 @@ document.getElementById("syncQuestionBankButton").addEventListener("click", asyn
     }
 });
 
-function handleAuthenticated(profile, progress) {
+async function handleAuthenticated(profile, progress) {
     currentProfile = profile;
     authScreen.hidden = true;
     appShell.hidden = false;
@@ -1321,6 +1502,19 @@ function handleAuthenticated(profile, progress) {
     loadProfileAvatar();
     updateName(profile.display_name);
     updateProgress(progress);
+    try {
+        const screenTime = await window.chemSecureApp.getScreenTime();
+        if (screenTime) {
+            screenTimeTotal = screenTime.total_seconds || 0;
+            updateScreenTimeDisplay();
+        }
+    } catch (error) {
+        console.warn("Could not load screen time.", error);
+    }
+    if (screenTimeTracker) {
+        screenTimeTracker.stop();
+    }
+    screenTimeTracker = new ScreenTimeTracker(profile.id);
     showAppPage(window.location.hash.slice(1));
 }
 

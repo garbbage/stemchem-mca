@@ -128,8 +128,7 @@ button {
     place-items: center;
     border-radius: 12px;
     background: #e6f5eb;
-    color: var(--green);
-    font-size: 25px;
+    object-fit: cover;
 }
 
 .brand-accent {
