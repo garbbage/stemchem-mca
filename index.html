@@ -248,6 +248,11 @@
 
                 <section class="app-page" id="page-dictionary" aria-labelledby="dictionaryTitle" hidden>
                     <div class="section-heading page-heading"><div><h1 id="dictionaryTitle">Chemistry terms</h1></div></div>
+                    <div class="dictionary-lesson-nav" role="navigation" aria-label="Dictionary lessons">
+                        <button class="dictionary-nav-button" id="dictionaryPrevLesson" type="button" aria-label="Previous lesson">‹</button>
+                        <span class="dictionary-current-lesson" id="dictionaryCurrentLesson"></span>
+                        <button class="dictionary-nav-button" id="dictionaryNextLesson" type="button" aria-label="Next lesson">›</button>
+                    </div>
                     <label class="dictionary-search" for="dictionarySearch">
                         <span aria-hidden="true">⌕</span>
                         <input id="dictionarySearch" type="search" placeholder="Search chemistry terms..." autocomplete="off">
@@ -314,6 +319,17 @@
                             <button class="secondary-button avatar-reset-button" id="resetProfileAvatarButton" type="button">Reset</button>
                         </div>
                         <p class="avatar-feedback" id="avatarFeedback" aria-live="polite"></p>
+                    </section>
+                    <section class="profile-preferences" aria-labelledby="extendedDefinitionsTitle">
+                        <div>
+                            <h2 id="extendedDefinitionsTitle">Extended Definitions</h2>
+                            <p>Show longer, more detailed definitions alongside regular dictionary terms.</p>
+                        </div>
+                        <label class="preference-toggle" for="extendedDefinitionsToggle">
+                            <input id="extendedDefinitionsToggle" type="checkbox">
+                            <span>Enable extended definitions</span>
+                        </label>
+                        <p id="extendedDefinitionsFeedback" class="auth-feedback" aria-live="polite"></p>
                     </section>
                 </section>
 

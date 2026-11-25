@@ -654,6 +654,101 @@ input:focus-visible {
     outline-offset: 2px;
 }
 
+.dictionary-lesson-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.dictionary-nav-button {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.dictionary-nav-button:hover:not(:disabled) {
+    border-color: var(--teal);
+    background: var(--surface-soft);
+}
+
+.dictionary-nav-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--line);
+}
+
+.dictionary-current-lesson {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.preference-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.preference-toggle input[type="checkbox"] {
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.preference-toggle input[type="checkbox"] + span {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    min-width: 44px;
+    min-height: 24px;
+    background: var(--line);
+    border-radius: 999px;
+    transition: background 160ms ease;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.preference-toggle input[type="checkbox"]:checked + span {
+    background: var(--teal);
+}
+
+.preference-toggle input[type="checkbox"]:checked + span::before {
+    transform: translateX(20px);
+}
+
+.preference-toggle input[type="checkbox"] + span::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 160ms ease;
+}
+
 .leaderboard-row,
 .admin-roster th,
 .admin-roster td {
@@ -810,6 +905,7 @@ input:focus-visible {
 .curriculum-unit,
 .practice-card,
 .dictionary-entry,
+.dictionary-lesson-nav,
 .profile-page-card,
 .profile-stat-card,
 .lesson-dialog,
@@ -993,6 +1089,34 @@ input:focus-visible {
 
 :root[data-theme="dark"] .profile-preferences {
     border-color: var(--line);
+}
+
+:root[data-theme="dark"] .dictionary-lesson-nav {
+    background: var(--surface);
+    border-color: var(--line);
+}
+
+:root[data-theme="dark"] .dictionary-nav-button {
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--ink);
+}
+
+:root[data-theme="dark"] .dictionary-nav-button:hover:not(:disabled) {
+    background: var(--surface-soft);
+    border-color: var(--teal-strong);
+}
+
+:root[data-theme="dark"] .dictionary-current-lesson {
+    color: var(--muted);
+}
+
+:root[data-theme="dark"] .preference-toggle input[type="checkbox"] + span {
+    background: var(--line);
+}
+
+:root[data-theme="dark"] .preference-toggle input[type="checkbox"]:checked + span {
+    background: var(--teal-strong);
 }
 
 :root[data-theme="dark"] .theme-option[aria-pressed="true"] {

@@ -81,6 +81,147 @@ let screenTimeTotal = 0;
 let screenTimeTracker = null;
 let flashcardState = { words: [], index: 0, topic: "" };
 let quizState = null;
+let currentDictionaryLessonIndex = 0;
+let extendedDefinitionsEnabled = false;
+let dictionaryLessons = [];
+
+function getDictionaryStorageKey(profileId) {
+    return `stemchem-extended-definitions-${profileId}`;
+}
+
+function loadExtendedDefinitionsPreference() {
+    if (!currentProfile) return false;
+    try {
+        const saved = window.localStorage.getItem(getDictionaryStorageKey(currentProfile.id));
+        return saved === "true";
+    } catch (error) {
+        console.warn("Could not read extended definitions preference.", error);
+        return false;
+    }
+}
+
+function saveExtendedDefinitionsPreference(value) {
+    if (!currentProfile) return;
+    try {
+        window.localStorage.setItem(getDictionaryStorageKey(currentProfile.id), String(value));
+    } catch (error) {
+        console.warn("Could not save extended definitions preference.", error);
+    }
+}
+
+function getDictionaryLessons() {
+    const lessons = [];
+    const seen = new Set();
+    for (const entry of wordBank) {
+        if (entry.topic && !seen.has(entry.topic)) {
+            seen.add(entry.topic);
+            lessons.push(entry.topic);
+        }
+    }
+    return lessons;
+}
+
+function getDictionaryEntriesForLesson(topic, searchTerm = "") {
+    const query = searchTerm.trim().toLocaleLowerCase();
+    return wordBank.filter((entry) => {
+        if (entry.topic !== topic) return false;
+        const clue = getClue(entry);
+        const definition = entry.extendedDefinition || clue;
+        const formula = entry.formula || {};
+        const formulaText = [
+            ...(Array.isArray(formula.equations) ? formula.equations : []),
+            ...(Array.isArray(formula.explanation) ? formula.explanation : []),
+            ...(Array.isArray(formula.procedure) ? formula.procedure : [])
+        ].join(" ");
+        return `${entry.word} ${entry.topic} ${clue} ${definition} ${formulaText}`
+            .toLocaleLowerCase()
+            .includes(query);
+    });
+}
+
+function renderDictionaryByLesson(searchTerm = "") {
+    if (dictionaryLessons.length === 0) {
+        document.getElementById("dictionaryList").replaceChildren();
+        document.getElementById("dictionaryResultCount").textContent = "0 terms";
+        return;
+    }
+    const topic = dictionaryLessons[currentDictionaryLessonIndex];
+    const matches = getDictionaryEntriesForLesson(topic, searchTerm);
+    const list = document.getElementById("dictionaryList");
+    list.replaceChildren();
+    document.getElementById("dictionaryResultCount").textContent =
+        `${matches.length} term${matches.length === 1 ? "" : "s"}`;
+    document.getElementById("dictionaryCurrentLesson").textContent =
+        `Lesson ${currentDictionaryLessonIndex + 1} of ${dictionaryLessons.length} · ${topic}`;
+
+    if (!matches.length) {
+        const empty = document.createElement("p");
+        empty.className = "dictionary-empty";
+        empty.textContent = "No matching terms. Try another search.";
+        list.append(empty);
+        return;
+    }
+
+    matches.forEach((entry) => {
+        const card = document.createElement("article");
+        card.className = "dictionary-entry";
+        const term = document.createElement("h2");
+        term.textContent = formatWord(entry.word);
+        const topicSpan = document.createElement("span");
+        topicSpan.className = "dictionary-topic";
+        topicSpan.textContent = topicNameMap.get(entry.topic)?.title || entry.topic;
+        const definitionText = extendedDefinitionsEnabled && entry.extendedDefinition
+            ? entry.extendedDefinition
+            : getClue(entry);
+        const definition = document.createElement("p");
+        definition.textContent = definitionText;
+        card.append(term, topicSpan, definition);
+        const formula = entry.formula;
+        const content = document.createElement("section");
+        content.className = "dictionary-content dictionary-formula";
+        const heading = document.createElement("h3");
+        heading.textContent = "Formula and method";
+        content.append(heading);
+        let hasFormulaContent = false;
+        [
+            ["Equations", formula?.equations],
+            ["Explanation", formula?.explanation],
+            ["Procedure", formula?.procedure]
+        ].forEach(([label, items]) => {
+            if (!Array.isArray(items) || !items.length) {
+                return;
+            }
+            hasFormulaContent = true;
+            const subsection = document.createElement("div");
+            subsection.className = "dictionary-formula-section";
+            const subsectionTitle = document.createElement("h4");
+            subsectionTitle.textContent = label;
+            const listEl = document.createElement(label === "Procedure" ? "ol" : "ul");
+            items.forEach((item) => {
+                const row = document.createElement("li");
+                row.textContent = item;
+                listEl.append(row);
+            });
+            subsection.append(subsectionTitle, listEl);
+            content.append(subsection);
+        });
+        if (!hasFormulaContent) {
+            const empty = document.createElement("p");
+            empty.className = "dictionary-formula-empty";
+            empty.textContent = "Formula details can be added here.";
+            content.append(empty);
+        }
+        card.append(content);
+        list.append(card);
+    });
+}
+
+function updateDictionaryNav() {
+    const prevButton = document.getElementById("dictionaryPrevLesson");
+    const nextButton = document.getElementById("dictionaryNextLesson");
+    if (prevButton) prevButton.disabled = currentDictionaryLessonIndex === 0;
+    if (nextButton) nextButton.disabled = currentDictionaryLessonIndex >= dictionaryLessons.length - 1;
+}
 
 function todayKey(date = new Date()) {
     return date.toISOString().slice(0, 10);
@@ -233,6 +374,9 @@ function showSignedOut() {
     activityDates = [];
     learningProgress = {};
     screenTimeTotal = 0;
+    currentDictionaryLessonIndex = 0;
+    extendedDefinitionsEnabled = false;
+    dictionaryLessons = [];
     if (screenTimeTracker) {
         screenTimeTracker.stop();
     }
@@ -592,82 +736,7 @@ function renderCurriculum() {
 }
 
 function renderDictionary(searchTerm = "") {
-    const query = searchTerm.trim().toLocaleLowerCase();
-    const matches = wordBank.filter((entry) => {
-        const clue = getClue(entry);
-        const definition = entry.extendedDefinition || clue;
-        const formula = entry.formula || {};
-        const formulaText = [
-            ...(Array.isArray(formula.equations) ? formula.equations : []),
-            ...(Array.isArray(formula.explanation) ? formula.explanation : []),
-            ...(Array.isArray(formula.procedure) ? formula.procedure : [])
-        ].join(" ");
-        return `${entry.word} ${entry.topic} ${clue} ${definition} ${formulaText}`
-            .toLocaleLowerCase()
-            .includes(query);
-    });
-    const list = document.getElementById("dictionaryList");
-    list.replaceChildren();
-    document.getElementById("dictionaryResultCount").textContent =
-        `${matches.length} term${matches.length === 1 ? "" : "s"}`;
-
-    if (!matches.length) {
-        const empty = document.createElement("p");
-        empty.className = "dictionary-empty";
-        empty.textContent = "No matching terms. Try another search.";
-        list.append(empty);
-        return;
-    }
-
-    matches.forEach((entry) => {
-        const card = document.createElement("article");
-        card.className = "dictionary-entry";
-        const term = document.createElement("h2");
-        term.textContent = formatWord(entry.word);
-        const topic = document.createElement("span");
-        topic.className = "dictionary-topic";
-        topic.textContent = topicNameMap.get(entry.topic)?.title || entry.topic;
-        const definition = document.createElement("p");
-        definition.textContent = entry.extendedDefinition || getClue(entry);
-        card.append(term, topic, definition);
-        const formula = entry.formula;
-        const content = document.createElement("section");
-        content.className = "dictionary-content dictionary-formula";
-        const heading = document.createElement("h3");
-        heading.textContent = "Formula and method";
-        content.append(heading);
-        let hasFormulaContent = false;
-        [
-            ["Equations", formula?.equations],
-            ["Explanation", formula?.explanation],
-            ["Procedure", formula?.procedure]
-        ].forEach(([label, items]) => {
-            if (!Array.isArray(items) || !items.length) {
-                return;
-            }
-            hasFormulaContent = true;
-            const subsection = document.createElement("div");
-            subsection.className = "dictionary-formula-section";
-            const subsectionTitle = document.createElement("h4");
-            subsectionTitle.textContent = label;
-            const list = document.createElement(label === "Procedure" ? "ol" : "ul");
-            items.forEach((item) => {
-                const row = document.createElement("li");
-                row.textContent = item;
-                list.append(row);
-            });
-            subsection.append(subsectionTitle, list);
-            content.append(subsection);
-        });
-        if (!hasFormulaContent) {
-            const empty = document.createElement("p");
-            empty.className = "dictionary-formula-empty";
-            empty.textContent = "Formula details can be added here.";
-            content.append(empty);
-        }
-        card.append(content);
-        list.append(card);
-    });
+    renderDictionaryByLesson(searchTerm);
 }
 
 function openFlashcards(topic) {
@@ -871,6 +940,30 @@ document.getElementById("profileButton").addEventListener("click", () => navigat
 document.getElementById("topProfileButton").addEventListener("click", () => navigateToPage("profile"));
 document.getElementById("dictionarySearch").addEventListener("input", (event) => {
     renderDictionary(event.currentTarget.value);
+});
+document.getElementById("dictionaryPrevLesson").addEventListener("click", () => {
+    if (currentDictionaryLessonIndex > 0) {
+        currentDictionaryLessonIndex -= 1;
+        updateDictionaryNav();
+        renderDictionary();
+    }
+});
+document.getElementById("dictionaryNextLesson").addEventListener("click", () => {
+    if (currentDictionaryLessonIndex < dictionaryLessons.length - 1) {
+        currentDictionaryLessonIndex += 1;
+        updateDictionaryNav();
+        renderDictionary();
+    }
+});
+document.getElementById("extendedDefinitionsToggle").addEventListener("change", (event) => {
+    extendedDefinitionsEnabled = event.currentTarget.checked;
+    saveExtendedDefinitionsPreference(extendedDefinitionsEnabled);
+    renderDictionary();
+    const feedback = document.getElementById("extendedDefinitionsFeedback");
+    feedback.textContent = extendedDefinitionsEnabled
+        ? "Extended definitions enabled."
+        : "Extended definitions disabled.";
+    setTimeout(() => { feedback.textContent = ""; }, 2500);
 });
 document.getElementById("continueButton").addEventListener("click", () => {
     const lessons = window.ChemLearning.getLessons();
@@ -1137,6 +1230,12 @@ function showAppPage(pageName) {
     }
     if (selectedPage === "lesson" && lessonSlug) {
         window.ChemLearning.openTopic(lessonSlug);
+    }
+    if (selectedPage === "dictionary") {
+        dictionaryLessons = getDictionaryLessons();
+        currentDictionaryLessonIndex = 0;
+        updateDictionaryNav();
+        renderDictionary();
     }
 }
 
@@ -1516,6 +1615,11 @@ async function handleAuthenticated(profile, progress) {
     document.getElementById("profileDisplayName").value = profile.display_name;
     document.getElementById("avatarFeedback").textContent = "";
     loadProfileAvatar();
+    extendedDefinitionsEnabled = loadExtendedDefinitionsPreference();
+    const extendedDefinitionsToggle = document.getElementById("extendedDefinitionsToggle");
+    if (extendedDefinitionsToggle) {
+        extendedDefinitionsToggle.checked = extendedDefinitionsEnabled;
+    }
     updateName(profile.display_name);
     updateProgress(progress);
     try {
