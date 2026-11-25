@@ -177,11 +177,6 @@ function renderDictionaryByLesson(searchTerm = "") {
         definition.textContent = definitionText;
         card.append(term, topicSpan, definition);
         const formula = entry.formula;
-        const content = document.createElement("section");
-        content.className = "dictionary-content dictionary-formula";
-        const heading = document.createElement("h3");
-        heading.textContent = "Formula and method";
-        content.append(heading);
         let hasFormulaContent = false;
         [
             ["Equations", formula?.equations],
@@ -192,26 +187,36 @@ function renderDictionaryByLesson(searchTerm = "") {
                 return;
             }
             hasFormulaContent = true;
-            const subsection = document.createElement("div");
-            subsection.className = "dictionary-formula-section";
-            const subsectionTitle = document.createElement("h4");
-            subsectionTitle.textContent = label;
-            const listEl = document.createElement(label === "Procedure" ? "ol" : "ul");
-            items.forEach((item) => {
-                const row = document.createElement("li");
-                row.textContent = item;
-                listEl.append(row);
-            });
-            subsection.append(subsectionTitle, listEl);
-            content.append(subsection);
         });
-        if (!hasFormulaContent) {
-            const empty = document.createElement("p");
-            empty.className = "dictionary-formula-empty";
-            empty.textContent = "Formula details can be added here.";
-            content.append(empty);
+        if (hasFormulaContent) {
+            const content = document.createElement("section");
+            content.className = "dictionary-content dictionary-formula";
+            const heading = document.createElement("h3");
+            heading.textContent = "Formula and method";
+            content.append(heading);
+            [
+                ["Equations", formula?.equations],
+                ["Explanation", formula?.explanation],
+                ["Procedure", formula?.procedure]
+            ].forEach(([label, items]) => {
+                if (!Array.isArray(items) || !items.length) {
+                    return;
+                }
+                const subsection = document.createElement("div");
+                subsection.className = "dictionary-formula-section";
+                const subsectionTitle = document.createElement("h4");
+                subsectionTitle.textContent = label;
+                const listEl = document.createElement(label === "Procedure" ? "ol" : "ul");
+                items.forEach((item) => {
+                    const row = document.createElement("li");
+                    row.textContent = item;
+                    listEl.append(row);
+                });
+                subsection.append(subsectionTitle, listEl);
+                content.append(subsection);
+            });
+            card.append(content);
         }
-        card.append(content);
         list.append(card);
     });
 }
