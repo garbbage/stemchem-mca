@@ -39,6 +39,9 @@ var crosswordConfig = window.STEMCHEM_SUPABASE_CONFIG || {};
 var crosswordSupabase = window.supabase && crosswordConfig.url && crosswordConfig.anonKey
     ? window.supabase.createClient(crosswordConfig.url, crosswordConfig.anonKey)
     : null;
+var crosswordHintCount = 0;
+var crosswordOffSiteDetected = false;
+var crosswordStorageKey = null;
 
 window.onload = function(){
     var topicFilters = document.getElementById("topicFilters");
@@ -62,6 +65,7 @@ window.onload = function(){
     });
     document.getElementById("wordCount").addEventListener("change", buildCrossword);
     document.getElementById("checkAnswers").addEventListener("click", checkAnswers);
+    document.getElementById("revealLetterButton").addEventListener("click", revealLetter);
     document.getElementById("previousClue").addEventListener("click", function(){
         changeActiveClue(-1, true);
     });
@@ -80,6 +84,37 @@ window.onload = function(){
     createMobileKeyboard();
     updateWordLimit();
     buildCrossword();
+
+    // Off-site detection: warn when user leaves the tab/window during a game
+    var offsiteNotice = document.getElementById("offsiteNotice");
+    function handleVisibilityChange() {
+        if (document.hidden && crosswordSessionId && !crosswordComplete) {
+            crosswordOffSiteDetected = true;
+            if (offsiteNotice) {
+                offsiteNotice.textContent = "You left the page during this game. Rewards will be reduced.";
+                offsiteNotice.hidden = false;
+            }
+        }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handleVisibilityChange);
+
+    // Persist hint count across page refreshes
+    function loadHintCount() {
+        if (!crosswordStorageKey) return 0;
+        try {
+            var saved = window.localStorage.getItem(crosswordStorageKey);
+            return saved ? parseInt(saved, 10) || 0 : 0;
+        } catch (e) { return 0; }
+    }
+    function saveHintCount(count) {
+        if (!crosswordStorageKey) return;
+        try {
+            window.localStorage.setItem(crosswordStorageKey, String(count));
+        } catch (e) {}
+    }
+    window.crosswordLoadHintCount = loadHintCount;
+    window.crosswordSaveHintCount = saveHintCount;
 };
 
 function getSelectedTopics(){
@@ -143,6 +178,9 @@ function buildCrossword(){
     crosswordQuestionIds = [];
     crosswordComplete = false;
     crosswordChecking = false;
+    crosswordHintCount = 0;
+    crosswordOffSiteDetected = false;
+    crosswordStorageKey = null;
     focusedGridCell = null;
     document.getElementById("checkAnswers").disabled = true;
     setPuzzleControlsDisabled(false);
@@ -271,6 +309,14 @@ async function startCrosswordSession(entries, buildToken){
         });
         document.getElementById("checkAnswers").disabled = false;
         status.textContent = entries.length + " words from selected topics. This crossword is ready to earn game XP.";
+
+        // Set up hint persistence for this session
+        crosswordStorageKey = "stemchem-crossword-hints-" + crosswordSessionId;
+        crosswordHintCount = window.crosswordLoadHintCount ? window.crosswordLoadHintCount() : 0;
+        crosswordOffSiteDetected = false;
+        var offsiteNotice = document.getElementById("offsiteNotice");
+        if (offsiteNotice) offsiteNotice.hidden = true;
+        updateHintDisplay();
     }catch(error){
         if(buildToken !== crosswordBuildToken) return;
         document.getElementById("checkAnswers").disabled = false;
@@ -346,7 +392,7 @@ function handleMobileKeyboard(event){
 }
 
 function setPuzzleControlsDisabled(disabled){
-    var controls = document.querySelectorAll("#topicFilters input, #wordCount, #mobileKeyboard button, .crossword-letter");
+    var controls = document.querySelectorAll("#topicFilters input, #wordCount, #mobileKeyboard button, .crossword-letter, #revealLetterButton");
     for(var i = 0; i < controls.length; i++) controls[i].disabled = disabled;
 }
 
@@ -560,7 +606,13 @@ async function checkAnswers(){
     feedback.textContent += " Saving verified result…";
     try{
         var result = await crosswordSupabase.functions.invoke("quiz", {
-            body: { action: "submit_crossword", sessionId: sessionId, answers: answers }
+            body: {
+                action: "submit_crossword",
+                sessionId: sessionId,
+                answers: answers,
+                offSitePenalty: crosswordOffSiteDetected,
+                hintCount: crosswordHintCount
+            }
         });
         if(result.error) throw await readFunctionError(result.error);
         if(sessionId !== crosswordSessionId) return;
@@ -592,7 +644,58 @@ async function readFunctionError(error){
     return new Error(error && error.message ? error.message : "The crossword result could not be saved.");
 }
 
+function updateHintDisplay(){
+    var hintBtn = document.getElementById("revealLetterButton");
+    var hintDisplay = document.getElementById("hintCountDisplay");
+    if (hintBtn) {
+        hintBtn.textContent = "Reveal Letter (" + crosswordHintCount + " used)";
+        hintBtn.disabled = crosswordComplete || crosswordChecking;
+    }
+    if (hintDisplay) {
+        hintDisplay.textContent = "Hints used: " + crosswordHintCount + " (-5 XP each)";
+    }
+}
+
+function revealLetter(){
+    if (crosswordComplete || crosswordChecking || !focusedGridCell) return;
+    if (!focusedGridCell.classList.contains("crossword-letter")) return;
+    if (focusedGridCell.value) return; // Already filled
+
+    var answer = focusedGridCell.getAttribute("data-answer");
+    if (!answer) return;
+
+    crosswordHintCount += 1;
+    window.crosswordSaveHintCount ? window.crosswordSaveHintCount(crosswordHintCount) : null;
+    focusedGridCell.value = answer;
+    focusedGridCell.classList.add("is-correct");
+    window.ChemAudio.play("crossword");
+    updateHintDisplay();
+
+    // Auto-advance to next empty cell in the active clue
+    var clue = crosswordClues[activeClueIndex];
+    if (clue && focusedGridCell.hasAttribute("data-" + clue.direction + "-position")) {
+        var clueCells = Array.prototype.slice.call(getActiveClueCells());
+        clueCells.sort(function(left, right){
+            return parseInt(left.getAttribute("data-" + clue.direction + "-position"), 10) -
+                parseInt(right.getAttribute("data-" + clue.direction + "-position"), 10);
+        });
+        var currentIndex = clueCells.indexOf(focusedGridCell);
+        var nextCell = clueCells.slice(currentIndex + 1).concat(clueCells.slice(0, currentIndex))
+            .find(function(candidate){ return !candidate.value; });
+        if (nextCell) {
+            nextCell.focus();
+        }
+    }
+}
+
 function showCrosswordResults(result, rewarded){
+    // Clear persisted hint count after game completion
+    if (crosswordStorageKey) {
+        try { window.localStorage.removeItem(crosswordStorageKey); } catch (e) {}
+    }
+    crosswordHintCount = 0;
+    crosswordOffSiteDetected = false;
+
     var results = document.getElementById("crosswordResults");
     var review = document.getElementById("crosswordReview");
     var multiplier = Number(result.multiplier || 1).toFixed(1);
@@ -603,7 +706,7 @@ function showCrosswordResults(result, rewarded){
         (rewarded
             ? (xp > 0
                 ? " You earned +" + xp + " XP at " + multiplier + "×."
-                : " This result earned 0 XP; rewards are limited to five completed games and 100 game XP per day.")
+                : " This result earned 0 XP; check your answers or try a different game.")
             : " This local practice result was not saved for XP.");
     review.replaceChildren();
     crosswordClues.forEach(function(clue, index){
@@ -683,7 +786,10 @@ function addLegendToPage(groups){
             <p id="status" aria-live="polite" role="status"></p>
             <div id="crossword"></div>
             <div id="mobileKeyboard" class="mobile-keyboard" aria-label="Crossword letter keyboard"></div>
+            <p id="hintCountDisplay" aria-live="polite" style="margin: 0.5rem 0; font-size: 0.9rem; color: #666;">Hints used: 0 (-5 XP each)</p>
+            <button id="revealLetterButton" type="button">Reveal Letter (0 used)</button>
             <button id="checkAnswers" type="button">Check answers</button>
+            <p id="offsiteNotice" aria-live="polite" style="margin: 0.5rem 0; color: #d32f2f; font-size: 0.9rem;" hidden></p>
             <p id="answerFeedback" aria-live="polite"></p>
             <section id="clueNavigator" aria-label="Current crossword clue">
                 <button id="previousClue" class="clue-arrow" type="button" aria-label="Previous clue">&larr;</button>
