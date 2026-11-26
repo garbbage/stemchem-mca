@@ -874,7 +874,7 @@ function finishQuiz() {
     const complete = quizState.serverComplete;
     const rewardMessage = quizState.awardedXp > 0
         ? `You earned ${quizState.awardedXp} XP at ${quizState.multiplier.toFixed(1)}×.`
-        : "This score earned no XP. Rewards depend on performance and are capped at five completed games and 100 game XP per day.";
+        : "This score earned no XP. Rewards depend on performance.";
     document.getElementById("challengePrompt").textContent = complete
         ? `Round complete! You got ${quizState.correct} of ${quizState.questions.length} correct.`
         : "This round was not fully saved. Start another round to continue earning progress.";
